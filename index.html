@@ -3,18 +3,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Compress, Arrange & Export Images to Excel</title>
+  <title>Download Excel (.xlsx) — Compress & Arrange Images</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- ExcelJS (guarded) -->
+  https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
+  </script>
+  <!-- FileSaver (guarded) -->
   <script
-    src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
-   leSaver (guarded) -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"
-    defer
-    onload="window.__filesaverLoaded = true;"
-   af; --bg: #f8fafc; --border: #e5e7eb;
+    src="ivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js
+  </script>
+
+  <style>
+    :root {
+      --accent: #2563eb; --accent-2: #1e40af; --bg: #f8fafc; --border: #e5e7eb;
       --text: #0f172a; --muted: #64748b;
     }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
@@ -26,7 +28,7 @@
     .panel { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
     .controls { display: grid; grid-template-columns: repeat(3, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
     .control label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
-    .control input[type="number"], .control input[type="range"], .control select {
+    .control input[type="number"], .control input[type="range"] {
       width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff;
     }
     .buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
@@ -52,12 +54,13 @@
     .dragging { opacity: 0.6; }
     .footer-note { font-size: 12px; color: var(--muted); margin-top: 12px; }
     .hidden { display: none !important; }
+    .warn { color: #b45309; font-size: 12px; margin-top: 8px; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Compress, Arrange & Export Images to Excel</h1>
-    <div class="sub">Select photos → compress client-side → drag to arrange → export to .xlsx with thumbnails & metadata (fallback to CSV if ExcelJS blocked).</div>
+    <h1>Download Excel (.xlsx) — Compress & Arrange Images</h1>
+    <div class="sub">Select photos → compress client-side → drag to arrange → click <b>Download Excel (.xlsx)</b>.</div>
   </header>
 
   <main>
@@ -81,8 +84,7 @@
         <button id="selectBtn" class="btn">Select images</button>
         <button id="compressBtn" class="btn">Compress</button>
         <button id="clearBtn" class="btn">Clear</button>
-        <button id="exportBtn" class="btn primary" disabled>Export to Excel</button>
-        <button id="exportCsvBtn" class="btn">Export CSV (metadata)</button>
+        <button id="downloadXlsxBtn" class="btn primary" disabled>Download Excel (.xlsx)</button>
       </div>
 
       <div id="dropzone" class="dropzone" aria-label="Image dropzone">
@@ -92,7 +94,8 @@
       </div>
 
       <div id="grid" class="grid hidden" aria-live="polite"></div>
-      <div id="note" class="footer-note hidden">Tip: Drag the tiles themselves to reorder. (No external library required.)</div>
+      <div id="note" class="footer-note hidden">Tip: Drag the tiles themselves to reorder (no external library needed).</div>
+      <div id="libWarn" class="warn hidden">ExcelJS seems blocked in your network. The Excel download will fall back to CSV metadata.</div>
     </section>
   </main>
 
@@ -113,10 +116,10 @@
       selectBtn: document.getElementById('selectBtn'),
       compressBtn: document.getElementById('compressBtn'),
       clearBtn: document.getElementById('clearBtn'),
-      exportBtn: document.getElementById('exportBtn'),
-      exportCsvBtn: document.getElementById('exportCsvBtn'),
+      downloadXlsxBtn: document.getElementById('downloadXlsxBtn'),
       grid: document.getElementById('grid'),
       note: document.getElementById('note'),
+      libWarn: document.getElementById('libWarn'),
       maxWidth: document.getElementById('maxWidth'),
       quality: document.getElementById('quality'),
       qualityValue: document.getElementById('qualityValue'),
@@ -173,24 +176,27 @@
         }
       }
       render();
-      els.exportBtn.disabled = false;
+      els.downloadXlsxBtn.disabled = false;
     });
 
-    els.exportBtn.addEventListener('click', async () => {
+    els.downloadXlsxBtn.addEventListener('click', async () => {
       if (!state.items.length) return;
-      try {
-        await ensureLibraries();
-        await tryExcelExport();
-      } catch (err) {
-        console.warn('Excel export unavailable. Falling back to CSV.', err);
-        alert('Excel export unavailable. Exporting CSV (metadata only).');
+
+      // Check libraries and toggle warning
+      const libsOk = await librariesAvailable();
+      els.libWarn.classList.toggle('hidden', libsOk);
+
+      if (libsOk) {
+        try {
+          await buildAndDownloadExcel();
+        } catch (err) {
+          console.error('Excel build failed:', err);
+          alert('Excel download failed. Falling back to CSV (metadata only).');
+          exportCsv();
+        }
+      } else {
         exportCsv();
       }
-    });
-
-    els.exportCsvBtn.addEventListener('click', () => {
-      if (!state.items.length) return;
-      exportCsv();
     });
 
     // -------------------------
@@ -212,7 +218,6 @@
         });
       });
 
-      // Allow reordering by dragging within the grid
       els.grid.addEventListener('dragover', (e) => {
         e.preventDefault();
         const dragging = els.grid.querySelector('.tile.dragging');
@@ -229,7 +234,6 @@
       els.grid.addEventListener('drop', () => {
         const newOrder = Array.from(els.grid.querySelectorAll('.tile')).map(t => t.dataset.id);
         state.items.sort((a,b) => newOrder.indexOf(String(a.id)) - newOrder.indexOf(String(b.id)));
-        // DOM already reflects the order; re-render optional
       });
 
       function getDragAfterElement(container, y) {
@@ -259,3 +263,193 @@
         .then(results => {
           for (let res of results) {
             state.items.push({
+              id: idCounter++,
+              file: res.file,
+              name: res.file.name,
+              originalBytes: res.file.size,
+              originalDataURL: res.dataURL,
+              compressedDataURL: null,
+              compressedBytes: null,
+              width: res.width,
+              height: res.height
+            });
+          }
+        })
+        .then(() => {
+          render();
+          els.compressBtn.disabled = state.items.length === 0;
+          els.downloadXlsxBtn.disabled = state.items.length === 0;
+        })
+        .catch(err => console.error('Load error', err));
+    }
+
+    function render() {
+      if (!state.items.length) {
+        els.grid.classList.add('hidden');
+        els.note.classList.add('hidden');
+        els.downloadXlsxBtn.disabled = true;
+        els.compressBtn.disabled = true;
+        return;
+      }
+      els.grid.classList.remove('hidden');
+      els.note.classList.remove('hidden');
+      els.compressBtn.disabled = false;
+      els.downloadXlsxBtn.disabled = false;
+
+      els.grid.innerHTML = '';
+      for (let item of state.items) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.id = String(item.id);
+
+        const thumbWrap = document.createElement('div');
+        thumbWrap.className = 'thumb-wrap';
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.src = item.compressedDataURL || item.originalDataURL;
+        thumbWrap.appendChild(img);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.title = item.name;
+        name.textContent = item.name;
+
+        const stats = document.createElement('div');
+        stats.className = 'stats';
+        const orig = document.createElement('div');
+        orig.textContent = `Original: ${bytesToKB(item.originalBytes)} KB`;
+        const comp = document.createElement('div');
+        comp.textContent = item.compressedBytes ? `Compressed: ${bytesToKB(item.compressedBytes)} KB` : 'Compressed: —';
+        const dims = document.createElement('div');
+        dims.textContent = (item.width && item.height) ? `Size: ${item.width}×${item.height}` : 'Size: —';
+
+        stats.appendChild(orig); stats.appendChild(comp); stats.appendChild(dims);
+        meta.appendChild(name); meta.appendChild(stats);
+
+        const handle = document.createElement('div');
+        handle.className = 'handle';
+        handle.textContent = 'Drag tile to reorder';
+
+        tile.appendChild(thumbWrap);
+        tile.appendChild(meta);
+        tile.appendChild(handle);
+
+        els.grid.appendChild(tile);
+      }
+
+      enableNativeDragReorder();
+    }
+
+    // -------------------------
+    // Export: Excel & CSV
+    // -------------------------
+    async function librariesAvailable() {
+      // Wait ~2s max for defer scripts
+      for (let i = 0; i < 40; i++) {
+        await new Promise(r => setTimeout(r, 50));
+        if (window.__exceljsLoaded && window.__filesaverLoaded) break;
+      }
+      return (typeof ExcelJS !== 'undefined') && (typeof saveAs !== 'undefined');
+    }
+
+    async function buildAndDownloadExcel() {
+      const thumbH = parseInt(els.thumbHeight.value, 10) || 160;
+
+      const wb = new ExcelJS.Workbook();
+      wb.created = new Date();
+      wb.modified = new Date();
+      wb.properties = { title: 'Images (Compressed & Arranged)' };
+
+      const ws = wb.addWorksheet('Images');
+
+      ws.addRow(['File name', 'Original size (KB)', 'Compressed size (KB)', 'Dimensions (W×H)', 'Preview']);
+      ws.getRow(1).font = { bold: true };
+      ws.columns = [
+        { header: 'File name', key: 'name', width: 40 },
+        { header: 'Original size (KB)', key: 'origKB', width: 18 },
+        { header: 'Compressed size (KB)', key: 'compKB', width: 18 },
+        { header: 'Dimensions (W×H)', key: 'dims', width: 18 },
+        { header: 'Preview', key: 'preview', width: 22 },
+      ];
+
+      for (let i = 0; i < state.items.length; i++) {
+        const item = state.items[i];
+        const rowIdx = i + 2;
+
+        const origKB = bytesToKB(item.originalBytes);
+        const compKB = item.compressedBytes ? bytesToKB(item.compressedBytes) : '';
+        const dims = item.width && item.height ? `${item.width}×${item.height}` : '';
+
+        ws.addRow([item.name, origKB, compKB, dims, '']);
+
+        const dataURL = item.compressedDataURL || item.originalDataURL;
+        if (!dataURL) continue;
+
+        const ext = guessExtensionFromDataURL(dataURL);
+        const base64 = dataURLToBase64(dataURL);
+        const imgId = wb.addImage({ base64, extension: ext });
+
+        const { width: w, height: h } = await measureDataURL(dataURL);
+        const aspect = w / h;
+        const displayH = thumbH; // px
+        const displayW = Math.max(1, Math.round(displayH * aspect));
+
+        ws.getRow(rowIdx).height = pxToExcelRowHeight(displayH);
+
+        ws.addImage(imgId, {
+          tl: { col: 4.1, row: rowIdx - 1 + 0.05 },
+          ext: { width: displayW, height: displayH },
+          editAs: 'oneCell'
+        });
+      }
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+      saveAs(blob, `Images_Compressed_Arranged_${stamp}.xlsx`);
+    }
+
+    function exportCsv() {
+      const lines = [
+        ['File name', 'Original size (KB)', 'Compressed size (KB)', 'Dimensions (W×H)'].join(',')
+      ];
+      for (const item of state.items) {
+        const name = `"${(item.name || '').replace(/"/g,'""')}"`;
+        const origKB = bytesToKB(item.originalBytes);
+        const compKB = item.compressedBytes ? bytesToKB(item.compressedBytes) : '';
+        const dims = (item.width && item.height) ? `${item.width}×${item.height}` : '';
+        lines.push([name, origKB, compKB, dims].join(','));
+      }
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+      if (typeof saveAs === 'function') {
+        saveAs(blob, `Images_Metadata_${stamp}.csv`);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Images_Metadata_${stamp}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    // -------------------------
+    // Image helpers
+    // -------------------------
+    function bytesToKB(bytes) { return Math.round((bytes / 1024) * 10) / 10; }
+
+    function loadImageAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const dataURL = reader.result;
+          try {
+            const dims = await measureDataURL(dataURL);
+            resolve({ file, dataURL, width: dims.width, height: dims.height });
+          } catch (e) { reject(e); }
