@@ -1,519 +1,194 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Download Excel (.xlsx) — Compress & Arrange Images</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pic‑Sorting — Optimized Layout (Single Action Bar)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net"/>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root{ --bg:#ffffff; --text:#0f172a; --muted:#64748b; --line:#e5e7eb; --accent:#2563eb; --danger:#ef4444; --panel:#f8fafc; --chip:#eef2ff; --radius:12px; --shadow:0 6px 20px rgba(15,23,42,.08); --sidebar:320px; --gap:14px; --gap-sm:10px; --control:40px; }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
 
-  <!-- ExcelJS (guarded) -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
-    defer
-    onload="window.__exceljsLoaded = true;"
-    onerror="console.error('ExcelJS failed to load'); window.__exceljsoot {
-      --accent: #2563eb; --accent-2: #1e40af; --bg: #f8fafc; --border: #e5e7eb;
-      --text: #0f172a; --muted: #64748b;
-    }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      margin: 0; background: var(--bg); color: var(--text); }
-    header { padding: 20px 24px; border-bottom: 1px solid var(--border); background: #fff; position: sticky; top: 0; z-index: 10; }
-    h1 { margin: 0 0 8px; font-size: 20px; }
-    .sub { color: var(--muted); font-size: 14px; }
-    main { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .panel { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-    .controls { display: grid; grid-template-columns: repeat(3, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
-    .control label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
-    .control input[type="number"], .control input[type="range"] {
-      width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff;
-    }
-    .buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-    .btn { appearance: none; border: 1px solid var(--border); background: #fff; padding: 10px 14px;
-      border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--text); }
-    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .btn.primary:hover { background: var(--accent-2); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .dropzone { border: 2px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; color: var(--muted); background: #fafafa; }
-    .dropzone.dragover { border-color: var(--accent); background: #eef2ff; color: var(--accent-2); }
-    .dropzone input { display: none; }
-    .dropzone .title { font-weight: 600; margin-bottom: 8px; }
-    .dropzone .hint { font-size: 13px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 16px; }
-    .tile { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
-    .thumb-wrap { aspect-ratio: 1 / 1; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
-    .thumb-wrap img { max-width: 100%; max-height: 100%; display: block; }
-    .meta { padding: 8px; font-size: 12px; color: var(--muted); display: grid; gap: 6px; }
-    .name { color: var(--text); font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .stats { display: flex; gap: 10px; flex-wrap: wrap; }
-    .handle { padding: 8px; font-size: 12px; color: var(--muted); border-top: 1px dashed var(--border); background: #fafafa; text-align: center; }
-    .draggable { cursor: grab; }
-    .dragging { opacity: 0.6; }
-    .footer-note { font-size: 12px; color: var(--muted); margin-top: 12px; }
-    .hidden { display: none !important; }
-    .warn { color: #b45309; font-size: 12px; margin-top: 8px; }
-  </style>
+/* Header (brand only) */
+.app-header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.85);backdrop-filter:saturate(180%) blur(6px);border-bottom:1px solid var(--line);} 
+.h-wrap{max-width:1200px;margin:0 auto;padding:10px var(--gap);display:flex;align-items:center;gap:var(--gap);} 
+.brand{font-weight:700;letter-spacing:.2px}
+
+/* Layout */
+.layout{max-width:1200px;margin:0 auto;padding:var(--gap);display:grid;grid-template-columns:minmax(280px,var(--sidebar)) 1fr;gap:var(--gap);} 
+@media(max-width:920px){.layout{grid-template-columns:1fr}}
+
+/* Sidebar */
+.sidebar{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:var(--gap);} 
+.field{display:grid;gap:6px;margin-bottom:var(--gap-sm)} 
+.label{font-weight:600} 
+.row{display:flex;flex-wrap:wrap;gap:10px}
+input[type="text"],input[type="number"],input[type="color"]{height:var(--control);padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);min-width:100px} 
+.small{font-size:.9rem;color:var(--muted)} 
+.chips{display:flex;flex-wrap:wrap;gap:8px} 
+.chip{padding:6px 10px;border-radius:999px;background:var(--chip);border:1px solid #dbeafe;color:#1e293b;font-size:.85rem}
+
+/* Content */
+.content{display:grid;gap:var(--gap)} 
+.dropzone{border:2px dashed var(--line);border-radius:var(--radius);padding:20px;text-align:center;color:var(--muted);background:#fff} 
+.dropzone.dragover{border-color:var(--accent);color:var(--text)} 
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--gap)} 
+.card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;box-shadow:var(--shadow)} 
+.card img{width:100%;height:160px;object-fit:cover;background:#fafafa} 
+.card .meta{display:flex;justify-content:space-between;align-items:center;padding:8px;border-top:1px solid var(--line)} 
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* SINGLE sticky action bar */
+.action-bar{position:sticky;bottom:0;background:#ffffffee;border-top:1px solid var(--line);padding:8px var(--gap);display:flex;gap:8px;justify-content:flex-end;z-index:50}
+@media(max-width:560px){.action-bar{justify-content:space-between}}
+
+.btn{height:var(--control);padding:0 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:transparent;color:#fff}
+.btn.danger{background:var(--danger);border-color:transparent;color:#fff}
+.btn:hover{filter:brightness(1.03)}
+
+.hidden{position:absolute;left:-9999px;top:-9999px;height:0;width:0;opacity:0}
+</style>
 </head>
 <body>
-  <header>
-    <h1>Download Excel (.xlsx) — Compress & Arrange Images</h1>
-    <div class="sub">Select photos → compress client-side → drag tiles to reorder → click <b>Download Excel (.xlsx)</b>. If ExcelJS is blocked, it falls back to CSV.</div>
-  </header>
+<header class="app-header" aria-label="Page header">
+  <div class="h-wrap">
+    <div class="brand">Pic‑Sorting</div>
+  </div>
+</header>
 
-  <main>
-    <section class="panel">
-      <div class="controls">
-        <div class="control">
-          <label for="maxWidth">Max width (px)</label>
-          <input id="maxWidth" type="number" min="64" max="8000" step="10" value="1200" />
-        </div>
-        <div class="control">
-          <label for="quality">JPEG quality: <span id="qualityValue">0.80</span></label>
-          <input id="quality" type="range" min="0.1" max="1" step="0.05" value="0.8" />
-        </div>
-        <div class="control">
-          <label for="thumbHeight">Excel thumbnail height (px)</label>
-          <input id="thumbHeight" type="number" min="60" max="600" step="10" value="160" />
-        </div>
+<main class="layout" aria-label="Main layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" aria-label="Controls">
+    <div class="field">
+      <div class="label">Size unit</div>
+      <div class="row" role="group" aria-label="Sizing unit">
+        <label><input type="radio" name="unit" value="cm" checked> CM</label>
+        <label><input type="radio" name="unit" value="px"> PX</label>
       </div>
+      <div class="small">Use CM for print; PX for screen.</div>
+    </div>
 
-      <div class="buttons">
-        <button id="selectBtn" class="btn">Select images</button>
-        <button id="compressBtn" class="btn">Compress</button>
-        <button id="clearBtn" class="btn">Clear</button>
-        <button id="downloadXlsxBtn" class="btn primary" disabled>Download Excel (.xlsx)</button>
+    <div class="field">
+      <label class="label" for="width">Width</label>
+      <input type="number" id="width" value="5" step="0.1">
+    </div>
+    <div class="field">
+      <label class="label" for="height">Height</label>
+      <input type="number" id="height" value="5" step="0.1">
+    </div>
+
+    <div class="field">
+      <div class="label">Resize mode</div>
+      <div class="chips" role="group" aria-label="Resize mode">
+        <label class="chip"><input type="radio" name="resize" value="fit" checked> Fit (no stretch)</label>
+        <label class="chip"><input type="radio" name="resize" value="fill"> Fill (crop)</label>
       </div>
+    </div>
 
-      <div id="dropzone" class="dropzone" aria-label="Image dropzone">
-        <div class="title">Drag & drop images here</div>
-        <div class="hint">or click <strong>Select images</strong> above. Accepted: JPG, PNG, WebP, GIF (first frame).</div>
-        <input id="fileInput" type="file" accept="image/*" multiple />
+    <div class="field">
+      <label class="label" for="padColor">Padding color</label>
+      <input type="color" id="padColor" value="#ffffff">
+    </div>
+
+    <!-- Hidden transparency UI per your request -->
+    <div class="hidden">
+      <label><input type="checkbox" id="preserveAlpha" checked> Preserve PNG/WebP alpha</label>
+    </div>
+
+    <div class="field">
+      <label class="label" for="quality">JPEG quality</label>
+      <input type="number" id="quality" value="0.80" step="0.05" min="0" max="1">
+    </div>
+
+    <div class="field">
+      <div class="label">Notes under image</div>
+      <div class="row">
+        <label><input type="checkbox" id="notesLine" checked> Enable</label>
+        <label><input type="checkbox" id="mergeAC" checked> Merge A..C</label>
       </div>
+    </div>
 
-      <div id="grid" class="grid hidden" aria-live="polite"></div>
-      <div id="note" class="footer-note hidden">Tip: Drag the tiles themselves to reorder (no external library needed).</div>
-      <div id="libWarn" class="warn hidden">ExcelJS seems blocked. The Excel download will fall back to CSV metadata.</div>
-    </section>
-  </main>
+    <div class="field">
+      <label class="label" for="notesRowHeight">Notes row height (cm)</label>
+      <input type="number" id="notesRowHeight" value="0.8" step="0.1">
+    </div>
 
-  <script>
-    // -------------------------
-    // State
-    // -------------------------
-    const state = {
-      items: [] // {id, file, name, originalBytes, originalDataURL, compressedDataURL, compressedBytes, width, height}
-    };
+    <div class="field">
+      <label class="label" for="fname">Excel file name</label>
+      <input type="text" id="fname" placeholder="e.g., A4-3x3-images">
+      <label style="margin-top:6px"><input type="checkbox" id="timestamp"> Append timestamp</label>
+    </div>
 
-    // -------------------------
-    // Elements
-    // -------------------------
-    const els = {
-      fileInput: document.getElementById('fileInput'),
-      dropzone: document.getElementById('dropzone'),
-      selectBtn: document.getElementById('selectBtn'),
-      compressBtn: document.getElementById('compressBtn'),
-      clearBtn: document.getElementById('clearBtn'),
-      downloadXlsxBtn: document.getElementById('downloadXlsxBtn'),
-      grid: document.getElementById('grid'),
-      note: document.getElementById('note'),
-      libWarn: document.getElementById('libWarn'),
-      maxWidth: document.getElementById('maxWidth'),
-      quality: document.getElementById('quality'),
-      qualityValue: document.getElementById('qualityValue'),
-      thumbHeight: document.getElementById('thumbHeight'),
-    };
+    <div class="field">
+      <div class="label">Pagination</div>
+      <label><input type="checkbox" id="autoPaginate" checked> Auto paginate (9 per sheet)</label>
+    </div>
+  </aside>
 
-    // -------------------------
-    // UI Events
-    // -------------------------
-    els.quality.addEventListener('input', () => {
-      els.qualityValue.textContent = Number(els.quality.value).toFixed(2);
-    });
+  <!-- Content -->
+  <section class="content" aria-label="Workspace">
+    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop images here or use action bar below">
+      Drag & drop images here or use the action bar below.
+    </div>
+    <div class="gallery" id="gallery" aria-live="polite"></div>
 
-    els.selectBtn.addEventListener('click', () => els.fileInput.click());
-    els.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    <!-- SINGLE action bar only -->
+    <div class="action-bar" aria-label="Actions">
+      <button class="btn" id="selectImagesBar">Select images</button>
+      <button class="btn" id="uniformBar">Uniform preview</button>
+      <button class="btn danger" id="clearBar">Clear</button>
+      <button class="btn primary" id="downloadBar">Download .xlsx</button>
+    </div>
+  </section>
+</main>
 
-    ['dragenter', 'dragover'].forEach(evt => {
-      els.dropzone.addEventListener(evt, (e) => {
-        e.preventDefault(); e.stopPropagation();
-        els.dropzone.classList.add('dragover');
-      });
-    });
-    ['dragleave', 'drop'].forEach(evt => {
-      els.dropzone.addEventListener(evt, (e) => {
-        e.preventDefault(); e.stopPropagation();
-        els.dropzone.classList.remove('dragover');
-      });
-    });
-    els.dropzone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      if (dt && dt.files && dt.files.length) handleFiles(dt.files);
-    });
+<!-- Hidden and fallback file inputs -->
+<input type="file" id="hiddenInput" accept="image/*" multiple class="hidden"/>
+<input type="file" id="visibleInput" accept="image/*" multiple class="hidden"/>
 
-    els.clearBtn.addEventListener('click', () => {
-      state.items = [];
-      render();
-    });
+<script>
+// --- Helpers
+const CM_TO_PX = 96/2.54; const PX_TO_POINTS = 72/96;
+const toPx = (val, unit) => unit === 'cm' ? (parseFloat(val||0)*CM_TO_PX) : parseFloat(val||0);
+const toPointsFromPx = (px) => px * PX_TO_POINTS; const toPointsFromCm = (cm) => (cm/2.54)*72;
+const pixelsToExcelChars = (px) => Math.max(1,(px - 5)/7); // Calibri 11 mapping
 
-    els.compressBtn.addEventListener('click', async () => {
-      if (!state.items.length) return;
-      const maxW = parseInt(els.maxWidth.value, 10) || 1200;
-      const qual = parseFloat(els.quality.value) || 0.8;
+const gallery = document.getElementById('gallery');
+const filesState = [];
 
-      for (let item of state.items) {
-        try {
-          const out = await compressImageFile(item.file, { maxWidth: maxW, quality: qual });
-          item.compressedDataURL = out.dataURL;
-          item.compressedBytes = out.bytes;
-          item.width = out.width;
-          item.height = out.height;
-        } catch (err) {
-          console.error('Compression error', err);
-          item.compressedDataURL = null; // fallback later
-        }
-      }
-      render();
-      els.downloadXlsxBtn.disabled = false;
-    });
+// Dropzone
+const drop = document.getElementById('dropzone');
+['dragenter','dragover'].forEach(evt=> drop.addEventListener(evt,e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
+['dragleave','drop'].forEach(evt=> drop.addEventListener(evt,e=>{ e.preventDefault(); drop.classList.remove('dragover'); }));
+drop.addEventListener('drop',(e)=>{ e.preventDefault(); const files=Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/')); addCards(files); });
 
-    els.downloadXlsxBtn.addEventListener('click', async () => {
-      if (!state.items.length) return;
+// File picker (single place wiring)
+const hiddenInput = document.getElementById('hiddenInput'); const visibleInput = document.getElementById('visibleInput');
+function openPicker(){ try{ hiddenInput.click(); }catch{ visibleInput.classList.remove('hidden'); visibleInput.click(); } }
+hiddenInput.addEventListener('change',(e)=> addCards(Array.from(e.target.files||[])));
+visibleInput.addEventListener('change',(e)=>{ addCards(Array.from(e.target.files||[])); visibleInput.classList.add('hidden'); });
+document.getElementById('selectImagesBar').addEventListener('click', openPicker);
 
-      // Check libraries and toggle warning
-      const libsOk = await librariesAvailable();
-      els.libWarn.classList.toggle('hidden', libsOk);
+// Cards
+function addCards(files){ files.forEach(file=>{ filesState.push(file); const url=URL.createObjectURL(file); const card=document.createElement('div'); card.className='card'; card.innerHTML=`<img src="${url}" alt="${file.name}"><div class="meta"><span class="small">${file.name}</span><div class="actions"><button class="btn">Remove</button></div></div>`; card.querySelector('.actions .btn').addEventListener('click',()=>{ const i=filesState.indexOf(file); if(i>-1) filesState.splice(i,1); URL.revokeObjectURL(url); card.remove(); }); gallery.appendChild(card); }); }
 
-      if (libsOk) {
-        try {
-          await buildAndDownloadExcel();
-        } catch (err) {
-          console.error('Excel build failed:', err);
-          alert('Excel download failed. Falling back to CSV (metadata only).');
-          exportCsv();
-        }
-      } else {
-        exportCsv();
-      }
-    });
+// Canvas processing
+function processImageToCanvas(file,widthPx,heightPx,mode,padColor){ return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>{ const canvas=document.createElement('canvas'); canvas.width=Math.round(widthPx); canvas.height=Math.round(heightPx); const ctx=canvas.getContext('2d'); const preserveAlpha = true; if(!(preserveAlpha && (/png|webp/i).test(file.type))){ ctx.fillStyle=padColor; ctx.fillRect(0,0,canvas.width,canvas.height); } const sw=img.naturalWidth, sh=img.naturalHeight; const sr=sw/sh; const dr=widthPx/heightPx; let dw,dh,dx,dy; if(mode==='fill'){ if(sr>dr){ dh=heightPx; dw=dh*sr; } else { dw=widthPx; dh=dw/sr; } dx=(widthPx-dw)/2; dy=(heightPx-dh)/2; ctx.drawImage(img,dx,dy,dw,dh); } else { if(sr>dr){ dw=widthPx; dh=dw/sr; dx=0; dy=(heightPx-dh)/2; } else { dh=heightPx; dw=dh*sr; dx=(widthPx-dw)/2; dy=0; } ctx.drawImage(img,dx,dy,dw,dh); } resolve(canvas); }; img.onerror=reject; img.src=URL.createObjectURL(file); }); }
 
-    // -------------------------
-    // Drag-to-reorder (native)
-    // -------------------------
-    function enableNativeDragReorder() {
-      const tiles = els.grid.querySelectorAll('.tile');
-      tiles.forEach(tile => {
-        tile.draggable = true;
-        tile.classList.add('draggable');
+async function uniformPreview(){ const unit=document.querySelector("input[name='unit']:checked").value; const w=parseFloat(document.getElementById('width').value||'5'); const h=parseFloat(document.getElementById('height').value||'5'); const mode=document.querySelector("input[name='resize']:checked").value; const padColor=document.getElementById('padColor').value||'#ffffff'; const widthPx=toPx(w,unit), heightPx=toPx(h,unit); const current=[...filesState]; gallery.innerHTML=''; for(const file of current){ const canvas=await processImageToCanvas(file,widthPx,heightPx,mode,padColor); const url=canvas.toDataURL('image/png'); const card=document.createElement('div'); card.className='card'; card.innerHTML=`<img src="${url}" alt="${file.name}"><div class="meta"><span class="small">${file.name}</span><div class="actions"><button class="btn">Remove</button></div></div>`; card.querySelector('.actions .btn').addEventListener('click',()=>{ const i=filesState.indexOf(file); if(i>-1) filesState.splice(i,1); card.remove(); }); gallery.appendChild(card);} }
 
-        tile.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/plain', tile.dataset.id);
-          tile.classList.add('dragging');
-        });
+document.getElementById('uniformBar').addEventListener('click', uniformPreview);
 
-        tile.addEventListener('dragend', () => {
-          tile.classList.remove('dragging');
-        });
-      });
+document.getElementById('clearBar').addEventListener('click',()=>{ gallery.innerHTML=''; filesState.length=0; });
 
-      els.grid.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const dragging = els.grid.querySelector('.tile.dragging');
-        if (!dragging) return;
+// Excel export
+async function exportExcel(){ if(!window.ExcelJS){ alert('ExcelJS not loaded'); return; } const unit=document.querySelector("input[name='unit']:checked").value; const w=parseFloat(document.getElementById('width').value||'5'); const h=parseFloat(document.getElementById('height').value||'5'); const mode=document.querySelector("input[name='resize']:checked").value; const padColor=document.getElementById('padColor').value||'#ffffff'; const quality=Math.min(Math.max(parseFloat(document.getElementById('quality').value||'0.8'),0),1); const includeNotes=document.getElementById('notesLine').checked; const mergeAC=document.getElementById('mergeAC').checked; const fname=(document.getElementById('fname').value||'A4-3x3-images'); const stamp=document.getElementById('timestamp').checked?('-'+new Date().toISOString().replace(/[:.]/g,'').slice(0,15)) : ''; const autoPaginate=document.getElementById('autoPaginate').checked; const widthPx=toPx(w,unit), heightPx=toPx(h,unit); const targetPts = unit==='cm' ? toPointsFromCm(h) : toPointsFromPx(heightPx); const perSheet=9; const total=filesState.length; const pages=autoPaginate?Math.max(1,Math.ceil(total/perSheet)):1; const wb=new ExcelJS.Workbook(); for(let p=0;p<pages;p++){ const ws=wb.addWorksheet('Sheet'+(p+1),{ pageSetup:{ paperSize:9, orientation:'portrait', fitToPage:true, fitToHeight:1, fitToWidth:1, margins:{ left:0.7, right:0.7, top:0.75, bottom:0.75, header:0.3, footer:0.3 } } }); const perColPx = widthPx/3; const perColChars = pixelsToExcelChars(perColPx); ws.columns=[ {width:perColChars},{width:perColChars},{width:perColChars},{width:2}, {width:perColChars},{width:perColChars},{width:perColChars},{width:2}, {width:perColChars},{width:perColChars},{width:perColChars} ]; const startIndex=p*perSheet; const endIndex=Math.min(total,startIndex+perSheet); const perRow=3; let imgIndex=0; const baseRowPts=18; const tileRows=Math.max(4, Math.ceil(targetPts/baseRowPts)); const perRowHeightPts=targetPts/tileRows; const notesRowPts=parseFloat(document.getElementById('notesRowHeight').value||'0')>0 ? toPointsFromCm(parseFloat(document.getElementById('notesRowHeight').value)) : 0; const spacerRows=1; for(let i=startIndex;i<endIndex;i++){ const file=filesState[i]; const canvas=await processImageToCanvas(file,widthPx,heightPx,mode,padColor); const usePNG=true; const dataURL=canvas.toDataURL(usePNG?'image/png':'image/jpeg', usePNG?undefined:quality); const base64=dataURL.split(',')[1]; const imageId=wb.addImage({ base64, extension: usePNG?'png':'jpeg' }); const colGroupIndex=imgIndex%perRow; const rowGroupIndex=Math.floor(imgIndex/perRow); const groupStarts=[0,4,8]; const tlCol=groupStarts[colGroupIndex]; const blockRows = tileRows + (includeNotes?1:0) + spacerRows; const tlRow = rowGroupIndex * blockRows; const brCol=tlCol+3; const brRow=tlRow+tileRows; for(let r=0;r<tileRows;r++){ ws.getRow(tlRow + 1 + r).height = perRowHeightPts; } ws.addImage(imageId,{ tl:{ col:tlCol, row:tlRow }, br:{ col:brCol, row:brRow }, editAs:'twoCell' }); if(includeNotes){ const notesRowIdx=brRow+1; const excelRow=ws.getRow(notesRowIdx); if(notesRowPts>0){ excelRow.height=notesRowPts; } if(mergeAC){ const mergeStart=['A','E','I'][colGroupIndex]+notesRowIdx; const mergeEnd=['C','G','K'][colGroupIndex]+notesRowIdx; ws.mergeCells(`${mergeStart}:${mergeEnd}`); } excelRow.alignment={ wrapText:true, vertical:'top' }; excelRow.font={ size:11 }; } imgIndex++; } } const buffer=await wb.xlsx.writeBuffer(); const blob=new Blob([buffer],{ type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${fname}${stamp}.xlsx`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); }
 
-        const afterElement = getDragAfterElement(els.grid, e.clientY);
-        if (afterElement == null) {
-          els.grid.appendChild(dragging);
-        } else {
-          els.grid.insertBefore(dragging, afterElement);
-        }
-      });
-
-      els.grid.addEventListener('drop', () => {
-        const newOrder = Array.from(els.grid.querySelectorAll('.tile')).map(t => t.dataset.id);
-        state.items.sort((a,b) => newOrder.indexOf(String(a.id)) - newOrder.indexOf(String(b.id)));
-      });
-
-      function getDragAfterElement(container, y) {
-        const elements = [...container.querySelectorAll('.tile:not(.dragging)')];
-        return elements.reduce((closest, child) => {
-          const box = child.getBoundingClientRect();
-          const offset = y - box.top - box.height / 2;
-          if (offset < 0 && offset > closest.offset) {
-            return { offset, element: child };
-          } else {
-            return closest;
-          }
-        }, { offset: Number.NEGATIVE_INFINITY }).element || null;
-      }
-    }
-
-    // -------------------------
-    // File handling & render
-    // -------------------------
-    function handleFiles(fileList) {
-      const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-      if (!files.length) return;
-      const startId = state.items.length ? Math.max(...state.items.map(i => i.id)) + 1 : 1;
-      let idCounter = startId;
-
-      Promise.all(files.map(f => loadImageAsDataURL(f)))
-        .then(results => {
-          for (let res of results) {
-            state.items.push({
-              id: idCounter++,
-              file: res.file,
-              name: res.file.name,
-              originalBytes: res.file.size,
-              originalDataURL: res.dataURL,
-              compressedDataURL: null,
-              compressedBytes: null,
-              width: res.width,
-              height: res.height
-            });
-          }
-        })
-        .then(() => {
-          render();
-          els.compressBtn.disabled = state.items.length === 0;
-          els.downloadXlsxBtn.disabled = state.items.length === 0;
-        })
-        .catch(err => console.error('Load error', err));
-    }
-
-    function render() {
-      if (!state.items.length) {
-        els.grid.classList.add('hidden');
-        els.note.classList.add('hidden');
-        els.downloadXlsxBtn.disabled = true;
-        els.compressBtn.disabled = true;
-        return;
-      }
-      els.grid.classList.remove('hidden');
-      els.note.classList.remove('hidden');
-      els.compressBtn.disabled = false;
-      els.downloadXlsxBtn.disabled = false;
-
-      els.grid.innerHTML = '';
-      for (let item of state.items) {
-        const tile = document.createElement('div');
-        tile.className = 'tile';
-        tile.dataset.id = String(item.id);
-
-        const thumbWrap = document.createElement('div');
-        thumbWrap.className = 'thumb-wrap';
-        const img = document.createElement('img');
-        img.loading = 'lazy';
-        img.src = item.compressedDataURL || item.originalDataURL;
-        thumbWrap.appendChild(img);
-
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        const name = document.createElement('div');
-        name.className = 'name';
-        name.title = item.name;
-        name.textContent = item.name;
-
-        const stats = document.createElement('div');
-        stats.className = 'stats';
-        const orig = document.createElement('div');
-        orig.textContent = `Original: ${bytesToKB(item.originalBytes)} KB`;
-        const comp = document.createElement('div');
-        comp.textContent = item.compressedBytes ? `Compressed: ${bytesToKB(item.compressedBytes)} KB` : 'Compressed: —';
-        const dims = document.createElement('div');
-        dims.textContent = (item.width && item.height) ? `Size: ${item.width}×${item.height}` : 'Size: —';
-
-        stats.appendChild(orig); stats.appendChild(comp); stats.appendChild(dims);
-        meta.appendChild(name); meta.appendChild(stats);
-
-        const handle = document.createElement('div');
-        handle.className = 'handle';
-        handle.textContent = 'Drag tile to reorder';
-
-        tile.appendChild(thumbWrap);
-        tile.appendChild(meta);
-        tile.appendChild(handle);
-
-        els.grid.appendChild(tile);
-      }
-
-      enableNativeDragReorder();
-    }
-
-    // -------------------------
-    // Export: Excel & CSV
-    // -------------------------
-    async function librariesAvailable() {
-      // Wait ~2s max for defer scripts
-      for (let i = 0; i < 40; i++) {
-        await new Promise(r => setTimeout(r, 50));
-        if (window.__exceljsLoaded && window.__filesaverLoaded) break;
-      }
-      return (typeof ExcelJS !== 'undefined') && (typeof saveAs !== 'undefined');
-    }
-
-    async function buildAndDownloadExcel() {
-      const thumbH = parseInt(els.thumbHeight.value, 10) || 160;
-
-      const wb = new ExcelJS.Workbook();
-      wb.created = new Date();
-      wb.modified = new Date();
-      wb.properties = { title: 'Images (Compressed & Arranged)' };
-
-      const ws = wb.addWorksheet('Images');
-
-      ws.addRow(['File name', 'Original size (KB)', 'Compressed size (KB)', 'Dimensions (W×H)', 'Preview']);
-      ws.getRow(1).font = { bold: true };
-      ws.columns = [
-        { header: 'File name', key: 'name', width: 40 },
-        { header: 'Original size (KB)', key: 'origKB', width: 18 },
-        { header: 'Compressed size (KB)', key: 'compKB', width: 18 },
-        { header: 'Dimensions (W×H)', key: 'dims', width: 18 },
-        { header: 'Preview', key: 'preview', width: 22 },
-      ];
-
-      for (let i = 0; i < state.items.length; i++) {
-        const item = state.items[i];
-        const rowIdx = i + 2;
-
-        const origKB = bytesToKB(item.originalBytes);
-        const compKB = item.compressedBytes ? bytesToKB(item.compressedBytes) : '';
-        const dims = item.width && item.height ? `${item.width}×${item.height}` : '';
-
-        ws.addRow([item.name, origKB, compKB, dims, '']);
-
-        const dataURL = item.compressedDataURL || item.originalDataURL;
-        if (!dataURL) continue;
-
-        const ext = guessExtensionFromDataURL(dataURL);
-        const base64 = dataURLToBase64(dataURL);
-        const imgId = wb.addImage({ base64, extension: ext });
-
-        const { width: w, height: h } = await measureDataURL(dataURL);
-        const aspect = w / h;
-        const displayH = thumbH; // px
-        const displayW = Math.max(1, Math.round(displayH * aspect));
-
-        ws.getRow(rowIdx).height = pxToExcelRowHeight(displayH);
-
-        ws.addImage(imgId, {
-          tl: { col: 4.1, row: rowIdx - 1 + 0.05 },
-          ext: { width: displayW, height: displayH },
-          editAs: 'oneCell'
-        });
-      }
-
-      const buffer = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-      saveAs(blob, `Images_Compressed_Arranged_${stamp}.xlsx`);
-    }
-
-    function exportCsv() {
-      const lines = [
-        ['File name', 'Original size (KB)', 'Compressed size (KB)', 'Dimensions (W×H)'].join(',')
-      ];
-      for (const item of state.items) {
-        const name = `"${(item.name || '').replace(/"/g,'""')}"`;
-        const origKB = bytesToKB(item.originalBytes);
-        const compKB = item.compressedBytes ? bytesToKB(item.compressedBytes) : '';
-        const dims = (item.width && item.height) ? `${item.width}×${item.height}` : '';
-        lines.push([name, origKB, compKB, dims].join(','));
-      }
-
-      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-      if (typeof saveAs === 'function') {
-        saveAs(blob, `Images_Metadata_${stamp}.csv`);
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Images_Metadata_${stamp}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-    }
-
-    // -------------------------
-    // Image helpers
-    // -------------------------
-    function bytesToKB(bytes) { return Math.round((bytes / 1024) * 10) / 10; }
-
-    function loadImageAsDataURL(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const dataURL = reader.result;
-          try {
-            const dims = await measureDataURL(dataURL);
-            resolve({ file, dataURL, width: dims.width, height: dims.height });
-          } catch (e) { reject(e); }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function measureDataURL(dataURL) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        img.onerror = reject;
-        img.src = dataURL;
-      });
-    }
-
-    function compressImageFile(file, { maxWidth = 1200, quality = 0.8 } = {}) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const srcDataURL = reader.result;
-          const img = new Image();
-          img.onload = () => {
-            const scale = Math.min(1, maxWidth / img.naturalWidth);
-            const targetW = Math.round(img.naturalWidth * scale);
-            const targetH = Math.round(img.naturalHeight * scale);
-
-            const canvas = document.createElement('canvas');
-            canvas.width = targetW; canvas.height = targetH;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, targetW, targetH);
-
-            // JPEG for Excel compatibility
-            const outDataURL = canvas.toDataURL('image/jpeg', quality);
-            const bytes = dataURLSize(outDataURL);
-            resolve({ dataURL: outDataURL, bytes, width: targetW, height: targetH });
-          };
-          img.onerror = reject;
-          img.src = srcDataURL;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function dataURLSize(dataURL) {
-      const base64 = dataURLToBase64(dataURL);
-      const padding = (base64.match(/=+$/) || [''])[0].length;
-      return Math.floor(base64.length * 3 / 4) - padding;
-    }
-
-    function guessExtensionFromDataURL(dataURL) {
-      const m = /^data:image\/(png|jpeg|jpg|webp)/i.exec(dataURL);
-      if (!m) return 'jpeg';
-      const ext = m[1].toLowerCase();
-      return ext === 'jpg' ? 'jpeg' : ext;
-    }
-
-    function dataURLToBase64(dataURL) {
-      return (dataURL || '').split(',')[1] || '';
-    }
-
-    function pxToExcelRowHeight(px) { return Math.round(px * 0.75); }
-  </script>
+document.getElementById('downloadBar').addEventListener('click', exportExcel);
+</script>
 </body>
 </html>
