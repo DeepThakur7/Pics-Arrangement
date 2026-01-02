@@ -6,16 +6,15 @@
   <title>Compress, Arrange & Export Images to Excel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- ExcelJS for creating .xlsx in the browser -->
-  https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js</script>
-  <!-- FileSaver for saving the Excel file -->
-  https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js</script>
-  <!-- SortableJS for drag-and-drop ordering -->
-  https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js</script>
-
-  <style>
-    :root {
-      --accent: #2563eb; --accent-2: #1e40af; --bg: #f8fafc; --border: #e5e7eb;
+  <!-- ExcelJS (guarded) -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
+   leSaver (guarded) -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"
+    defer
+    onload="window.__filesaverLoaded = true;"
+   af; --bg: #f8fafc; --border: #e5e7eb;
       --text: #0f172a; --muted: #64748b;
     }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
@@ -48,7 +47,9 @@
     .meta { padding: 8px; font-size: 12px; color: var(--muted); display: grid; gap: 6px; }
     .name { color: var(--text); font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .stats { display: flex; gap: 10px; flex-wrap: wrap; }
-    .handle { padding: 8px; font-size: 12px; color: var(--muted); border-top: 1px dashed var(--border); background: #fafafa; text-align: center; cursor: grab; }
+    .handle { padding: 8px; font-size: 12px; color: var(--muted); border-top: 1px dashed var(--border); background: #fafafa; text-align: center; }
+    .draggable { cursor: grab; }
+    .dragging { opacity: 0.6; }
     .footer-note { font-size: 12px; color: var(--muted); margin-top: 12px; }
     .hidden { display: none !important; }
   </style>
@@ -56,7 +57,7 @@
 <body>
   <header>
     <h1>Compress, Arrange & Export Images to Excel</h1>
-    <div class="sub">Select photos → compress client-side → drag to arrange → export to .xlsx with thumbnails & metadata.</div>
+    <div class="sub">Select photos → compress client-side → drag to arrange → export to .xlsx with thumbnails & metadata (fallback to CSV if ExcelJS blocked).</div>
   </header>
 
   <main>
@@ -81,6 +82,7 @@
         <button id="compressBtn" class="btn">Compress</button>
         <button id="clearBtn" class="btn">Clear</button>
         <button id="exportBtn" class="btn primary" disabled>Export to Excel</button>
+        <button id="exportCsvBtn" class="btn">Export CSV (metadata)</button>
       </div>
 
       <div id="dropzone" class="dropzone" aria-label="Image dropzone">
@@ -90,37 +92,68 @@
       </div>
 
       <div id="grid" class="grid hidden" aria-live="polite"></div>
-      <div id="note" class="footer-note hidden">Tip: Drag the tiles using the handle to set the final order before exporting.</div>
+      <div id="note" class="footer-note hidden">Tip: Drag the tiles themselves to reorder. (No external library required.)</div>
     </section>
   </main>
 
   <script>
-    const state = { items: [] };
-    const els = {
-      fileInput: document.getElementById('fileInput'), dropzone: document.getElementById('dropzone'),
-      selectBtn: document.getElementById('selectBtn'), compressBtn: document.getElementById('compressBtn'),
-      clearBtn: document.getElementById('clearBtn'), exportBtn: document.getElementById('exportBtn'),
-      grid: document.getElementById('grid'), note: document.getElementById('note'),
-      maxWidth: document.getElementById('maxWidth'), quality: document.getElementById('quality'),
-      qualityValue: document.getElementById('qualityValue'), thumbHeight: document.getElementById('thumbHeight'),
+    // -------------------------
+    // State
+    // -------------------------
+    const state = {
+      items: [] // {id, file, name, originalBytes, originalDataURL, compressedDataURL, compressedBytes, width, height}
     };
 
-    els.quality.addEventListener('input', () => els.qualityValue.textContent = Number(els.quality.value).toFixed(2));
+    // -------------------------
+    // Elements
+    // -------------------------
+    const els = {
+      fileInput: document.getElementById('fileInput'),
+      dropzone: document.getElementById('dropzone'),
+      selectBtn: document.getElementById('selectBtn'),
+      compressBtn: document.getElementById('compressBtn'),
+      clearBtn: document.getElementById('clearBtn'),
+      exportBtn: document.getElementById('exportBtn'),
+      exportCsvBtn: document.getElementById('exportCsvBtn'),
+      grid: document.getElementById('grid'),
+      note: document.getElementById('note'),
+      maxWidth: document.getElementById('maxWidth'),
+      quality: document.getElementById('quality'),
+      qualityValue: document.getElementById('qualityValue'),
+      thumbHeight: document.getElementById('thumbHeight'),
+    };
+
+    // -------------------------
+    // UI Events
+    // -------------------------
+    els.quality.addEventListener('input', () => {
+      els.qualityValue.textContent = Number(els.quality.value).toFixed(2);
+    });
+
     els.selectBtn.addEventListener('click', () => els.fileInput.click());
     els.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
     ['dragenter', 'dragover'].forEach(evt => {
-      els.dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); els.dropzone.classList.add('dragover'); });
+      els.dropzone.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        els.dropzone.classList.add('dragover');
+      });
     });
     ['dragleave', 'drop'].forEach(evt => {
-      els.dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); els.dropzone.classList.remove('dragover'); });
+      els.dropzone.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        els.dropzone.classList.remove('dragover');
+      });
     });
     els.dropzone.addEventListener('drop', (e) => {
       const dt = e.dataTransfer;
       if (dt && dt.files && dt.files.length) handleFiles(dt.files);
     });
 
-    els.clearBtn.addEventListener('click', () => { state.items = []; render(); });
+    els.clearBtn.addEventListener('click', () => {
+      state.items = [];
+      render();
+    });
 
     els.compressBtn.addEventListener('click', async () => {
       if (!state.items.length) return;
@@ -145,78 +178,77 @@
 
     els.exportBtn.addEventListener('click', async () => {
       if (!state.items.length) return;
-      const thumbH = parseInt(els.thumbHeight.value, 10) || 160;
       try {
-        const wb = new ExcelJS.Workbook();
-        wb.created = new Date();
-        wb.modified = new Date();
-        wb.properties = { title: 'Images (Compressed & Arranged)' };
-
-        const ws = wb.addWorksheet('Images');
-        ws.addRow(['File name', 'Original size (KB)', 'Compressed size (KB)', 'Dimensions (W×H)', 'Preview']);
-        ws.getRow(1).font = { bold: true };
-        ws.columns = [
-          { header: 'File name', key: 'name', width: 40 },
-          { header: 'Original size (KB)', key: 'origKB', width: 18 },
-          { header: 'Compressed size (KB)', key: 'compKB', width: 18 },
-          { header: 'Dimensions (W×H)', key: 'dims', width: 18 },
-          { header: 'Preview', key: 'preview', width: 22 },
-        ];
-
-        for (let i = 0; i < state.items.length; i++) {
-          const item = state.items[i];
-          const rowIdx = i + 2;
-          const origKB = bytesToKB(item.originalBytes);
-          const compKB = item.compressedBytes ? bytesToKB(item.compressedBytes) : '';
-          const dims = item.width && item.height ? `${item.width}×${item.height}` : '';
-
-          ws.addRow([item.name, origKB, compKB, dims, '']);
-
-          // Use compressed if available; else original
-          const dataURL = item.compressedDataURL || item.originalDataURL;
-          if (!dataURL) continue;
-
-          const ext = guessExtensionFromDataURL(dataURL);
-          const base64 = dataURLToBase64(dataURL);
-
-          const imgId = wb.addImage({ base64, extension: ext });
-
-          const { width: w, height: h } = await measureDataURL(dataURL);
-          const aspect = w / h;
-          const displayH = thumbH; // px
-          const displayW = Math.max(1, Math.round(displayH * aspect));
-
-          // Row height must be in points; ~ px * 0.75
-          ws.getRow(rowIdx).height = pxToExcelRowHeight(displayH);
-
-          // Anchor inside column E (index 5 => zero-based col 4)
-          ws.addImage(imgId, {
-            tl: { col: 4.1, row: rowIdx - 1 + 0.05 },
-            ext: { width: displayW, height: displayH },
-            editAs: 'oneCell'
-          });
-        }
-
-        const buffer = await wb.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-        saveAs(blob, `Images_Compressed_Arranged_${stamp}.xlsx`);
+        await ensureLibraries();
+        await tryExcelExport();
       } catch (err) {
-        console.error('Export failed:', err);
-        const msg = (err && err.message) ? err.message : String(err);
-        alert('Export failed: ' + msg + '\nCheck console for details.');
+        console.warn('Excel export unavailable. Falling back to CSV.', err);
+        alert('Excel export unavailable. Exporting CSV (metadata only).');
+        exportCsv();
       }
     });
 
-    new Sortable(els.grid, {
-      animation: 150, handle: '.handle',
-      onEnd: () => {
+    els.exportCsvBtn.addEventListener('click', () => {
+      if (!state.items.length) return;
+      exportCsv();
+    });
+
+    // -------------------------
+    // Drag-to-reorder (native)
+    // -------------------------
+    function enableNativeDragReorder() {
+      const tiles = els.grid.querySelectorAll('.tile');
+      tiles.forEach(tile => {
+        tile.draggable = true;
+        tile.classList.add('draggable');
+
+        tile.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', tile.dataset.id);
+          tile.classList.add('dragging');
+        });
+
+        tile.addEventListener('dragend', () => {
+          tile.classList.remove('dragging');
+        });
+      });
+
+      // Allow reordering by dragging within the grid
+      els.grid.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const dragging = els.grid.querySelector('.tile.dragging');
+        if (!dragging) return;
+
+        const afterElement = getDragAfterElement(els.grid, e.clientY);
+        if (afterElement == null) {
+          els.grid.appendChild(dragging);
+        } else {
+          els.grid.insertBefore(dragging, afterElement);
+        }
+      });
+
+      els.grid.addEventListener('drop', () => {
         const newOrder = Array.from(els.grid.querySelectorAll('.tile')).map(t => t.dataset.id);
         state.items.sort((a,b) => newOrder.indexOf(String(a.id)) - newOrder.indexOf(String(b.id)));
-        render();
-      }
-    });
+        // DOM already reflects the order; re-render optional
+      });
 
+      function getDragAfterElement(container, y) {
+        const elements = [...container.querySelectorAll('.tile:not(.dragging)')];
+        return elements.reduce((closest, child) => {
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height / 2;
+          if (offset < 0 && offset > closest.offset) {
+            return { offset, element: child };
+          } else {
+            return closest;
+          }
+        }, { offset: Number.NEGATIVE_INFINITY }).element || null;
+      }
+    }
+
+    // -------------------------
+    // File handling & render
+    // -------------------------
     function handleFiles(fileList) {
       const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
       if (!files.length) return;
@@ -227,158 +259,3 @@
         .then(results => {
           for (let res of results) {
             state.items.push({
-              id: idCounter++,
-              file: res.file,
-              name: res.file.name,
-              originalBytes: res.file.size,
-              originalDataURL: res.dataURL,
-              compressedDataURL: null,
-              compressedBytes: null,
-              width: res.width,
-              height: res.height
-            });
-          }
-        })
-        .then(() => {
-          render();
-          els.compressBtn.disabled = state.items.length === 0;
-        })
-        .catch(err => console.error('Load error', err));
-    }
-
-    function render() {
-      if (!state.items.length) {
-        els.grid.classList.add('hidden');
-        els.note.classList.add('hidden');
-        els.exportBtn.disabled = true;
-        els.compressBtn.disabled = true;
-        return;
-      }
-      els.grid.classList.remove('hidden');
-      els.note.classList.remove('hidden');
-      els.compressBtn.disabled = false;
-      els.grid.innerHTML = '';
-
-      for (let item of state.items) {
-        const tile = document.createElement('div');
-        tile.className = 'tile';
-        tile.dataset.id = String(item.id);
-
-        const thumbWrap = document.createElement('div');
-        thumbWrap.className = 'thumb-wrap';
-        const img = document.createElement('img');
-        img.loading = 'lazy';
-        img.src = item.compressedDataURL || item.originalDataURL;
-        thumbWrap.appendChild(img);
-
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        const name = document.createElement('div');
-        name.className = 'name';
-        name.title = item.name;
-        name.textContent = item.name;
-
-        const stats = document.createElement('div');
-        stats.className = 'stats';
-        const orig = document.createElement('div');
-        orig.textContent = `Original: ${bytesToKB(item.originalBytes)} KB`;
-        const comp = document.createElement('div');
-        comp.textContent = item.compressedBytes ? `Compressed: ${bytesToKB(item.compressedBytes)} KB` : 'Compressed: —';
-        const dims = document.createElement('div');
-        dims.textContent = (item.width && item.height) ? `Size: ${item.width}×${item.height}` : 'Size: —';
-
-        stats.appendChild(orig); stats.appendChild(comp); stats.appendChild(dims);
-        meta.appendChild(name); meta.appendChild(stats);
-
-        const handle = document.createElement('div');
-        handle.className = 'handle';
-        handle.textContent = 'Drag to reorder';
-
-        tile.appendChild(thumbWrap);
-        tile.appendChild(meta);
-        tile.appendChild(handle);
-        els.grid.appendChild(tile);
-      }
-      els.exportBtn.disabled = state.items.length === 0;
-    }
-
-    // Helpers
-    function bytesToKB(bytes) { return Math.round((bytes / 1024) * 10) / 10; }
-
-    function loadImageAsDataURL(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const dataURL = reader.result;
-          try {
-            const dims = await measureDataURL(dataURL);
-            resolve({ file, dataURL, width: dims.width, height: dims.height });
-          } catch (e) { reject(e); }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function measureDataURL(dataURL) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        img.onerror = reject;
-        img.src = dataURL;
-      });
-    }
-
-    function compressImageFile(file, { maxWidth = 1200, quality = 0.8 } = {}) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const srcDataURL = reader.result;
-          const img = new Image();
-          img.onload = () => {
-            const scale = Math.min(1, maxWidth / img.naturalWidth);
-            const targetW = Math.round(img.naturalWidth * scale);
-            const targetH = Math.round(img.naturalHeight * scale);
-
-            const canvas = document.createElement('canvas');
-            canvas.width = targetW; canvas.height = targetH;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, targetW, targetH);
-
-            const outDataURL = canvas.toDataURL('image/jpeg', quality);
-            const bytes = dataURLSize(outDataURL);
-            resolve({ dataURL: outDataURL, bytes, width: targetW, height: targetH });
-          };
-          img.onerror = reject;
-          img.src = srcDataURL;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function dataURLSize(dataURL) {
-      const base64 = dataURLToBase64(dataURL);
-      const padding = (base64.match(/=+$/) || [''])[0].length;
-      return Math.floor(base64.length * 3 / 4) - padding;
-    }
-
-    function guessExtensionFromDataURL(dataURL) {
-      const m = /^data:image\/(png|jpeg|jpg|webp)/i.exec(dataURL);
-      if (!m) return 'jpeg';
-      const ext = m[1].toLowerCase();
-      return ext === 'jpg' ? 'jpeg' : ext;
-    }
-
-    function dataURLToBase64(dataURL) {
-      // Strip "data:image/...;base64," prefix, return raw base64 content
-      return (dataURL || '').split(',')[1] || '';
-    }
-
-    function pxToExcelRowHeight(px) { return Math.round(px * 0.75); }
-  </script>
-</body>
-</html>
