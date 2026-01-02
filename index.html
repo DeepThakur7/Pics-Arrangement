@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+<meta charset=\"utf-8\"/>
+<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>
+<title>Choose Files/Folder → Compress → Excel (Grid, mm, DPI presets, sheets per subfolder)</title>
+<style>
+  :root { --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --accent:#38bdf8; --muted:#94a3b8; --ok:#22c55e; }
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);margin:0;padding:24px}
+  h1{margin:0 0 8px;font-size:22px}
+  .panel{background:var(--panel);border:1px solid #1f2937;border-radius:12px;padding:16px;max-width:1250px;margin:12px auto}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(260px,1fr))}
+  label{display:block;font-weight:600;margin-bottom:6px}
+  input[type=\"number\"],select,input[type=\"text\"]{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:var(--text)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .btn{appearance:none;border:1px solid #334155;border-radius:10px;padding:10px 16px;background:#0b1220;color:var(--text);cursor:pointer;font-weight:600}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .thumbs{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,180px)}
+  .thumb{border:1px solid #334155;border-radius:10px;padding:8px;background:#0b1220}
+  .thumb img{width:100%;height:120px;object-fit:cover;border-radius:6px}
+  .progress{width:100%;height:10px;background:#1f2937;border-radius:6px;overflow:hidden}
+  .progress>div{height:100%;background:var(--ok);width:0%;transition:width .2s}
+  .note{color:var(--muted);font-size:12px}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{border:1px solid #334155;padding:6px;text-align:left;font-size:12px}
+  th{background:#0b1220}
+  input[type=file]{position:absolute;left:-9999px;} /* fallback input hidden */
+</style>
+</head>
+<body>
+  <div class=\"panel\">
+    <h1>Choose Files/Folder → Compress → Excel</h1>
+    <div class=\"note\">All sizing is in <strong>millimetres (mm)</strong>. Use DPI selector and presets to match print layout. Sheets per subfolder requires choosing a folder (Chromium browsers).</div>
+
+    <div class=\"grid\" style=\"margin-top:12px\">
+      <div>
+        <label>DPI selector</label>
+        <select id=\"dpi\">
+          <option value=\"96\" selected>96 DPI (screen)</option>
+          <option value=\"300\">300 DPI (print)</option>
+        </select>
+      </div>
+      <div>
+        <label>Page preset</label>
+        <select id=\"preset\">
+          <option value=\"none\" selected>None</option>
+          <option value=\"a4p\">A4 Portrait (210 × 297 mm)</option>
+          <option value=\"a4l\">A4 Landscape (297 × 210 mm)</option>
+          <option value=\"letterp\">Letter Portrait (216 × 279 mm)</option>
+          <option value=\"letterl\">Letter Landscape (279 × 216 mm)</option>
+        </select>
+      </div>
+      <div>
+        <label>Margins (mm, left/right)</label>
+        <input id=\"margins\" type=\"text\" value=\"10,10\"/>
+      </div>
+
+      <div>
+        <label>Output format</label>
+        <select id=\"fmt\">
+          <option value=\"image/jpeg\">JPEG</option>
+          <option value=\"image/webp\">WebP</option>
+          <option value=\"image/png\">PNG (lossless)</option>
+        </select>
+      </div>
+      <div>
+        <label>Quality (JPEG/WebP)</label>
+        <input id=\"quality\" type=\"range\" min=\"0.1\" max=\"1\" step=\"0.05\" value=\"0.8\"/>
+        <input id=\"qualityVal\" type=\"text\" readonly value=\"0.80\"/>
+      </div>
+      <div>
+        <label>Max image size (mm) W × H</label>
+        <input id=\"maxWHmm\" type=\"text\" value=\"150,120\"/>
+      </div>
+
+      <div>
+        <label>Grid columns (count)</label>
+        <input id=\"gridCols\" type=\"number\" min=\"1\" value=\"3\"/>
+      </div>
+      <div>
+        <label>Excel image size (mm) W × H</label>
+        <input id=\"excelWHmm\" type=\"text\" value=\"90,60\"/>
+      </div>
+      <div>
+        <label>Excel col width / row height (mm)</label>
+        <input id=\"excelColRow\" type=\"text\" value=\"30,20\"/>
+      </div>
+
+      <div>
+        <label>Caption below image</label>
+        <select id=\"caption\">
+          <option value=\"true\">TRUE</option>
+          <option value=\"false\">FALSE</option>
+        </select>
+      </div>
+      <div>
+        <label>Sheets per subfolder</label>
+        <select id=\"sheetBySub\">
+          <option value=\"false\" selected>FALSE</option>
+          <option value=\"true\">TRUE (use Choose Folder)</option>
+        </select>
+      </div>
+      <div>
+        <label>Apply preset to sizing</label>
+        <button id=\"applyPreset\" class=\"btn\">Apply</button>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class=\"row\" style=\"margin-top:12px\">
+      <button id=\"chooseFilesBtn\" class=\"btn\">Choose Files (Desktop)</button>
+      <input id=\"filePickFallback\" type=\"file\" accept=\"image/*\" multiple />
+      <button id=\"chooseFolderBtn\" class=\"btn\">Choose Folder (for sheets per subfolder)</button>
+      <button id=\"clearBtn\" class=\"btn\">Clear</button>
+      <button id=\"compressBtn\" class=\"btn\">Compress</button>
+      <button id=\"excelBtn\" class=\"btn\">Create Excel (.xlsx)</button>
+      <button id=\"zipBtn\" class=\"btn\">Download ZIP</button>
+      <span class=\"note\">On Chrome/Edge, Desktop opens by default for file picker; folder picker requires Chromium.</span>
+    </div>
+
+    <div class=\"progress\" style=\"margin-top:12px\"><div id=\"bar\"></div></div>
+    <div id=\"status\" class=\"note\" style=\"margin-top:8px\"></div>
+  </div>
+
+  <div class=\"panel\">
+    <h2>Preview & Image Quality (mm)</h2>
+    <div id=\"thumbs\" class=\"thumbs\"></div>
+    <table id=\"infoTable\" style=\"margin-top:12px\">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Subfolder</th>
+          <th>Original (px)</th>
+          <th>Original (mm)</th>
+          <th>Compressed (px)</th>
+          <th>Compressed (mm)</th>
+          <th>Size</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class=\"note\">mm values assume selected DPI (96 or 300). Conversion: px/mm = DPI ÷ 25.4.</div>
+  </div>
+
+  <!-- Libraries -->
+  <script src=\"https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js\"></script>
+  <script src=\"https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js\"></script>
+  <script src=\"https://cdn.jsdelivr.net/npm/exif-js\"></script>
+  <script src=\"https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js\"></script>
+
+  <script>
+    // --- UI refs ---
+    const dpiEl = document.getElementById('dpi');
+    const presetEl = document.getElementById('preset');
+    const marginsEl = document.getElementById('margins');
+    const fmtEl = document.getElementById('fmt');
+    const qualEl = document.getElementById('quality');
+    const qualValEl = document.getElementById('qualityVal');
+    const maxWHmmEl = document.getElementById('maxWHmm');
+    const gridColsEl = document.getElementById('gridCols');
+    const excelWHmmEl = document.getElementById('excelWHmm');
+    const excelColRowEl = document.getElementById('excelColRow');
+    const captionEl = document.getElementById('caption');
+    const sheetBySubEl = document.getElementById('sheetBySub');
+    const applyPresetBtn = document.getElementById('applyPreset');
+
+    const chooseFilesBtn = document.getElementById('chooseFilesBtn');
+    const chooseFolderBtn = document.getElementById('chooseFolderBtn');
+    const filePickFallback = document.getElementById('filePickFallback');
+    const clearBtn = document.getElementById('clearBtn');
+    const compressBtn = document.getElementById('compressBtn');
+    const excelBtn = document.getElementById('excelBtn');
+    const zipBtn = document.getElementById('zipBtn');
+    const thumbs = document.getElementById('thumbs');
+    const bar = document.getElementById('bar');
+    const status = document.getElementById('status');
+    const infoBody = document.querySelector('#infoTable tbody');
+
+    function getPX_PER_MM(){ return Number(dpiEl.value) / 25.4; }
+    function getMM_PER_PX(){ return 1 / getPX_PER_MM(); }
+
+    qualEl.addEventListener('input', () => qualValEl.value = Number(qualEl.value).toFixed(2));
+
+    let files = [];   // File[] or objects from folder traversal
+    let isFolderMode = false; // true if we used directory picker
+    let results = []; // [{name, blob, url, base64ExcelJPEG, width, height, origW, origH, origSize, subfolder}]
+
+    function human(n){ if(n<1024) return n+' B'; if(n<1024*1024) return (n/1024).toFixed(1)+' KB'; return (n/1024/1024).toFixed(2)+' MB'; }
+    function setProgress(pct){ bar.style.width = Math.max(0,Math.min(100,pct))+'%'; }
+
+    function addFiles(list, subfolder){
+      for(const f of list){ if(f && f.type && f.type.startsWith('image/')) files.push({file:f, subfolder: subfolder || ''}); }
+      renderThumbs();
+    }
+
+    // --- Preset application ---
+    applyPresetBtn.addEventListener('click', ()=>{
+      const preset = presetEl.value;
+      const dpi = Number(dpiEl.value);
+      const pxPerMM = dpi/25.4;
+      let pageW = null, pageH = null;
+      if(preset === 'a4p'){ pageW=210; pageH=297; }
+      else if(preset === 'a4l'){ pageW=297; pageH=210; }
+      else if(preset === 'letterp'){ pageW=216; pageH=279; }
+      else if(preset === 'letterl'){ pageW=279; pageH=216; }
+      if(!pageW){ status.textContent = 'Preset: None'; return; }
+      const [ml, mr] = marginsEl.value.split(',').map(v=>Number(v.trim())||0);
+      const usableW = Math.max(10, pageW - (ml + mr));
+      const cols = Math.max(1, Number(gridColsEl.value));
+      const imgWmm = Math.floor( (usableW / cols) );
+      const imgHmm = Math.floor(imgWmm * 0.66); // simple aspect heuristic
+      excelWHmmEl.value = imgWmm + ',' + imgHmm;
+      // Column width and row height: set close to image size
+      excelColRowEl.value = Math.max(10, Math.floor(imgWmm/1.8)) + ',' + Math.max(10, Math.floor(imgHmm/2.5));
+      status.textContent = `Preset applied: page ${pageW}×${pageH} mm, image ~ ${imgWmm}×${imgHmm} mm per column.`;
+    });
+
+    // --- Choose Files (Desktop start where supported) ---
+    chooseFilesBtn.addEventListener('click', async ()=>{
+      isFolderMode = false;
+      if (window.showOpenFilePicker) {
+        try {
+          const handles = await window.showOpenFilePicker({ multiple:true, startIn:'desktop', types:[{description:'Images', accept:{'image/*':['.jpg','.jpeg','.png','.webp','.bmp','.tif','.tiff']}}] });
+          const picked = [];
+          for (const h of handles) { try { picked.push(await h.getFile()); } catch(e){} }
+          addFiles(picked);
+          status.textContent = `Selected ${picked.length} file(s) from Desktop.`;
+        } catch(err) { filePickFallback.click(); }
+      } else { filePickFallback.click(); }
+    });
+    filePickFallback.addEventListener('change', (e)=>{ isFolderMode=false; addFiles(e.target.files); status.textContent = `Selected ${e.target.files.length} file(s).`; });
+
+    // --- Choose Folder (Chromium only) ---
+    chooseFolderBtn.addEventListener('click', async ()=>{
+      if (sheetBySubEl.value !== 'true') { status.textContent = 'Enable "Sheets per subfolder" first.'; return; }
+      if (!window.showDirectoryPicker) { status.textContent = 'Your browser does not support folder picker.'; return; }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode:'read' });
+        files = []; // reset
+        isFolderMode = true;
+        async function walk(dirHandle, relPath=''){
+          for await (const [name, handle] of dirHandle.entries()){
+            if(handle.kind === 'file'){
+              const f = await handle.getFile();
+              const sub = relPath.split('/')[0] || '';
+              addFiles([f], sub);
+            } else if(handle.kind === 'directory'){
+              await walk(handle, relPath ? (relPath + '/' + name) : name);
+            }
+          }
+        }
+        await walk(dirHandle);
+        status.textContent = `Folder selected. Total images: ${files.length}.`;
+      } catch(err){ status.textContent = 'Folder selection cancelled.'; }
+    });
+
+    clearBtn.addEventListener('click', ()=>{
+      files = []; results.forEach(r=>URL.revokeObjectURL(r.url)); results=[]; thumbs.innerHTML=''; infoBody.innerHTML=''; setProgress(0); status.textContent=''; filePickFallback.value=''; isFolderMode=false;
+    });
+
+    function renderThumbs(){
+      thumbs.innerHTML='';
+      files.forEach((obj,i)=>{
+        const f = obj.file; const url = URL.createObjectURL(f);
+        const div = document.createElement('div'); div.className='thumb';
+        div.innerHTML = `
+          <img src="${url}" alt="">
+          <div style="font-size:12px">${f.name}${obj.subfolder? ' ('+obj.subfolder+')' : ''}</div>
+          <div class="row" style="justify-content:space-between">
+            <span class="note">${human(f.size)}</span>
+            <button class="btn" data-i="${i}">Remove</button>
+          </div>`;
+        thumbs.appendChild(div);
+        div.querySelector('button').addEventListener('click',()=>{ URL.revokeObjectURL(url); files.splice(i,1); renderThumbs(); });
+      });
+      if(results.length){
+        results.forEach(r=>{
+          const row = document.createElement('tr');
+          const mmPerPx = getMM_PER_PX();
+          const origMM = `${(r.origW*mmPerPx).toFixed(1)} × ${(r.origH*mmPerPx).toFixed(1)} mm`;
+          const compMM = `${(r.width*mmPerPx).toFixed(1)} × ${(r.height*mmPerPx).toFixed(1)} mm`;
+          row.innerHTML = `
+            <td>${r.name}</td>
+            <td>${r.subfolder||''}</td>
+            <td>${r.origW} × ${r.origH}</td>
+            <td>${origMM}</td>
+            <td>${r.width} × ${r.height}</td>
+            <td>${compMM}</td>
+            <td>${human(r.blob.size)}</td>`;
+          infoBody.appendChild(row);
+        });
+      }
+    }
+
+    async function readImageFixOrientation(file){
+      const buf = await file.arrayBuffer();
+      let ori = 1; try { const ex = EXIF.readFromBinaryFile(buf); ori = ex && ex.Orientation || 1; } catch(e){}
+      const url = URL.createObjectURL(new Blob([buf],{type:file.type}));
+      const img = await loadImage(url);
+      const {canvas} = orientCanvas(img, ori);
+      URL.revokeObjectURL(url);
+      return {canvas, imgW: img.naturalWidth, imgH: img.naturalHeight};
+    }
+    function loadImage(src){ return new Promise((res,rej)=>{ const im = new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=src; }); }
+    function orientCanvas(img, ori){
+      const w = img.naturalWidth, h = img.naturalHeight; const c = document.createElement('canvas'); const ctx = c.getContext('2d');
+      if(ori>=5 && ori<=8){ c.width = h; c.height = w; } else { c.width = w; c.height = h; }
+      switch(ori){ case 2: ctx.translate(w,0); ctx.scale(-1,1); break; case 3: ctx.translate(w,h); ctx.rotate(Math.PI); break; case 4: ctx.translate(0,h); ctx.scale(1,-1); break; case 5: ctx.rotate(0.5*Math.PI); ctx.scale(1,-1); ctx.translate(0,-w); break; case 6: ctx.rotate(0.5*Math.PI); ctx.translate(0,-h); break; case 7: ctx.rotate(0.5*Math.PI); ctx.scale(-1,1); ctx.translate(-h,-w); break; case 8: ctx.rotate(-0.5*Math.PI); ctx.translate(-w,0); break; }
+      ctx.drawImage(img,0,0); return {canvas:c, ctx};
+    }
+    function fitCanvas(canvas, maxWmm, maxHmm){
+      const pxPerMM = getPX_PER_MM();
+      const maxWpx = maxWmm * pxPerMM; const maxHpx = maxHmm * pxPerMM;
+      const w = canvas.width, h = canvas.height; const r = Math.min(maxWpx/w, maxHpx/h, 1);
+      if(r === 1) return canvas;
+      const out = document.createElement('canvas'); out.width = Math.round(w*r); out.height = Math.round(h*r);
+      const ictx = out.getContext('2d'); ictx.imageSmoothingEnabled = true; ictx.imageSmoothingQuality = 'high';
+      ictx.drawImage(canvas, 0, 0, out.width, out.height); return out;
+    }
+    async function blobFromCanvas(canvas, mime, q){ return new Promise(resolve => canvas.toBlob(b => resolve(b), mime, q)); }
+    async function dataURLFromBlob(blob){ return new Promise((resolve)=>{ const fr = new FileReader(); fr.onload = ()=>resolve(fr.result); fr.readAsDataURL(blob); }); }
+
+    async function compressOne(obj){
+      const file = obj.file; const subfolder = obj.subfolder || '';
+      const fmt = fmtEl.value; const q = Number(qualEl.value);
+      const [mwmm, mhmm] = maxWHmmEl.value.split(',').map(v=>Number(v.trim())||0);
+      const {canvas, imgW, imgH} = await readImageFixOrientation(file);
+      const resized = fitCanvas(canvas, mwmm, mhmm);
+
+      const blob = await blobFromCanvas(resized, fmt, q);
+      const baseName = file.name.replace(/\.[^.]+$/, ''); const ext = fmt==='image/jpeg'?'jpg':(fmt==='image/webp'?'webp':'png');
+      const name = `${baseName}_compressed.${ext}`; const url = URL.createObjectURL(blob);
+
+      const excelJPEGBlob = await blobFromCanvas(resized, 'image/jpeg', q);
+      const base64ExcelJPEG = await dataURLFromBlob(excelJPEGBlob);
+
+      return { name, blob, url, base64ExcelJPEG, width: resized.width, height: resized.height, origW: imgW, origH: imgH, origSize: file.size, subfolder };
+    }
+
+    compressBtn.addEventListener('click', async ()=>{
+      if(files.length===0){ status.textContent='No files selected.'; return; }
+      results.forEach(r=>URL.revokeObjectURL(r.url)); results=[]; infoBody.innerHTML='';
+      setProgress(0); status.textContent='Compressing...'; let done=0;
+      for(const obj of files){ try{ const r = await compressOne(obj); results.push(r);} catch(e){ console.error('Failed:', obj.file.name, e);} done++; setProgress(Math.round(done/files.length*100)); }
+      status.textContent=`Done: ${results.length}/${files.length} compressed.`; renderThumbs();
+    });
+
+    zipBtn.addEventListener('click', async ()=>{
+      if(results.length===0){ status.textContent='No compressed items yet.'; return; }
+      status.textContent='Building ZIP...'; const zip = new JSZip(); const folder = zip.folder('compressed')||zip; let i=0;
+      for(const r of results){ const ab = await r.blob.arrayBuffer(); folder.file(r.name, ab); i++; setProgress(Math.round(i/results.length*100)); }
+      const out = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:6}});
+      saveAs(out, 'compressed_images.zip'); status.textContent='ZIP downloaded.';
+    });
+
+    excelBtn.addEventListener('click', async ()=>{
+      if(results.length===0){ status.textContent='Compress first, then create Excel.'; return; }
+      status.textContent='Building Excel...';
+      const gridCols = Math.max(1, Number(gridColsEl.value));
+      const [imgWmm, imgHmm] = excelWHmmEl.value.split(',').map(v=>Number(v.trim())||0);
+      const [colWmm, rowHmm] = excelColRowEl.value.split(',').map(v=>Number(v.trim())||0);
+      const pxPerMM = getPX_PER_MM();
+      const imgWpx = Math.max(50, imgWmm * pxPerMM);
+      const imgHpx = Math.max(50, imgHmm * pxPerMM);
+      const addCaption = (captionEl.value==='true');
+      const bySub = (sheetBySubEl.value==='true');
+
+      const wb = new ExcelJS.Workbook(); wb.creator = 'ChooseFiles/Folder→Compress→Excel'; wb.created = new Date();
+
+      // Helper to add a sheet and place images in grid
+      function placeImagesOnSheet(ws, arr){
+        const approxChars = (colWmm * pxPerMM) / 7;
+        for(let c=1; c<=gridCols; c++){ ws.getColumn(c).width = Math.max(10, Math.round(approxChars)); }
+        let row = 1, col = 1;
+        for(const r of arr){
+          const imageId = wb.addImage({ base64: r.base64ExcelJPEG, extension: 'jpeg' });
+          ws.addImage(imageId, { tl: { col: col-1, row: row-1 }, ext: { width: imgWpx, height: imgHpx } });
+          const desiredRowPx = Math.max(imgHpx, rowHmm * pxPerMM);
+          ws.getRow(row).height = Math.round(desiredRowPx / 1.333);
+          if(addCaption){ ws.getCell(row+1, col).value = r.name; ws.getCell(row+1, col).alignment = { wrapText: true }; ws.getRow(row+1).height = 18; }
+          if(col < gridCols){ col++; } else { col = 1; row += addCaption ? 3 : 2; }
+        }
+      }
+
+      if(bySub && isFolderMode){
+        // Group results by subfolder
+        const groups = {};
+        for(const r of results){ const key = r.subfolder || 'Root'; if(!groups[key]) groups[key] = []; groups[key].push(r); }
+        for(const [key, arr] of Object.entries(groups)){
+          const safeName = key.replace(/[^A-Za-z0-9_\-]/g,'_').slice(0,31) || 'Sheet';
+          const ws = wb.addWorksheet(safeName);
+          placeImagesOnSheet(ws, arr);
+        }
+      } else {
+        const ws = wb.addWorksheet('Pictures');
+        placeImagesOnSheet(ws, results);
+      }
+
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), bySub && isFolderMode ? 'PicturesGrid_mm_bySub.xlsx' : 'PicturesGrid_mm.xlsx');
+      status.textContent='Excel ready & downloaded.';
+    });
+  </script>
+</body>
+</html>
