@@ -1,194 +1,363 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Pic‑Sorting — Optimized Layout (Single Action Bar)</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net"/>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<style>
-:root{ --bg:#ffffff; --text:#0f172a; --muted:#64748b; --line:#e5e7eb; --accent:#2563eb; --danger:#ef4444; --panel:#f8fafc; --chip:#eef2ff; --radius:12px; --shadow:0 6px 20px rgba(15,23,42,.08); --sidebar:320px; --gap:14px; --gap-sm:10px; --control:40px; }
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
-
-/* Header (brand only) */
-.app-header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.85);backdrop-filter:saturate(180%) blur(6px);border-bottom:1px solid var(--line);} 
-.h-wrap{max-width:1200px;margin:0 auto;padding:10px var(--gap);display:flex;align-items:center;gap:var(--gap);} 
-.brand{font-weight:700;letter-spacing:.2px}
-
-/* Layout */
-.layout{max-width:1200px;margin:0 auto;padding:var(--gap);display:grid;grid-template-columns:minmax(280px,var(--sidebar)) 1fr;gap:var(--gap);} 
-@media(max-width:920px){.layout{grid-template-columns:1fr}}
-
-/* Sidebar */
-.sidebar{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:var(--gap);} 
-.field{display:grid;gap:6px;margin-bottom:var(--gap-sm)} 
-.label{font-weight:600} 
-.row{display:flex;flex-wrap:wrap;gap:10px}
-input[type="text"],input[type="number"],input[type="color"]{height:var(--control);padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);min-width:100px} 
-.small{font-size:.9rem;color:var(--muted)} 
-.chips{display:flex;flex-wrap:wrap;gap:8px} 
-.chip{padding:6px 10px;border-radius:999px;background:var(--chip);border:1px solid #dbeafe;color:#1e293b;font-size:.85rem}
-
-/* Content */
-.content{display:grid;gap:var(--gap)} 
-.dropzone{border:2px dashed var(--line);border-radius:var(--radius);padding:20px;text-align:center;color:var(--muted);background:#fff} 
-.dropzone.dragover{border-color:var(--accent);color:var(--text)} 
-.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--gap)} 
-.card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;box-shadow:var(--shadow)} 
-.card img{width:100%;height:160px;object-fit:cover;background:#fafafa} 
-.card .meta{display:flex;justify-content:space-between;align-items:center;padding:8px;border-top:1px solid var(--line)} 
-.actions{display:flex;gap:8px;flex-wrap:wrap}
-
-/* SINGLE sticky action bar */
-.action-bar{position:sticky;bottom:0;background:#ffffffee;border-top:1px solid var(--line);padding:8px var(--gap);display:flex;gap:8px;justify-content:flex-end;z-index:50}
-@media(max-width:560px){.action-bar{justify-content:space-between}}
-
-.btn{height:var(--control);padding:0 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);cursor:pointer}
-.btn.primary{background:var(--accent);border-color:transparent;color:#fff}
-.btn.danger{background:var(--danger);border-color:transparent;color:#fff}
-.btn:hover{filter:brightness(1.03)}
-
-.hidden{position:absolute;left:-9999px;top:-9999px;height:0;width:0;opacity:0}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pic → Excel (3 per row + notes, compressed, mobile-friendly)</title>
+  <style>
+    :root { --accent:#0067b8; --bg:#f6f8fb; --border:#d0d4da; }
+    body { font-family: Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:#222; }
+    header { padding:12px 16px; background:#fff; border-bottom:1px solid var(--border); }
+    h1 { font-size:18px; margin:0 0 4px 0; }
+    .subtitle{ font-size:12px; color:#555; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:12px; padding:12px; }
+    @media (min-width:900px){ .grid{ grid-template-columns: 340px 1fr; } }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px; }
+    .card h2 { font-size:14px; margin:0 0 8px 0; }
+    .field { margin:8px 0; }
+    .label { font-size:12px; color:#555; display:block; margin-bottom:4px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    input[type="number"]{ width:100px; padding:6px; }
+    input[type="text"]{ padding:6px; width:220px; }
+    input[type="color"]{ width:44px; height:28px; padding:0; }
+    .btn { background: var(--accent); color:#fff; border:none; border-radius:6px; padding:10px 14px; cursor:pointer; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .btn.secondary{ background:#444; }
+    .bar { display:flex; gap:8px; flex-wrap:wrap; }
+    .muted { color:#666; font-size:12px; }
+    #dropzone { border:2px dashed var(--border); border-radius:8px; background:#fff; padding:16px; text-align:center; color:#666; }
+    #dropzone.dragover{ background:#eef6ff; border-color:#99c4f2; color:#2c5a90; }
+    #gallery { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
+    .thumb { border:1px solid var(--border); border-radius:8px; padding:6px; background:#fff; }
+    .thumb img { width:100%; height:120px; object-fit:cover; border-radius:4px; }
+    .thumb .meta { font-size:11px; margin-top:6px; display:flex; justify-content:space-between; align-items:center; }
+    .thumb .remove { font-size:11px; color:#a00; cursor:pointer; }
+    #status { font-size:12px; color:#333; }
+    #status .ok{ color: #047857; }
+    #status .bad{ color: #b91c1c; }
+    .tip { font-size:12px; color:#555; margin-top:6px; }
+  </style>
+  <!-- ExcelJS via CDN + fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
+  <script>
+    (function ensureExcelJS(){
+      function loadLocal(){ var s=document.createElement('script'); s.src='exceljs.min.js'; document.head.appendChild(s); }
+      window.addEventListener('load', function(){ if(!window.ExcelJS){ loadLocal(); } });
+    })();
+  </script>
 </head>
 <body>
-<header class="app-header" aria-label="Page header">
-  <div class="h-wrap">
-    <div class="brand">Pic‑Sorting</div>
+  <header>
+    <h1>Export Images to Excel — 3 per row + notes (compressed, mobile‑friendly)</h1>
+    <div class="subtitle">Works on mobile: select multiple from Photos or Files; compress before export to reduce .xlsx size.</div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Layout & Compression</h2>
+      <div class="field">
+        <span class="label">Unit</span>
+        <label><input type="radio" name="unit" value="cm" checked> cm</label>
+        <label style="margin-left:8px"><input type="radio" name="unit" value="px"> px</label>
+      </div>
+      <div class="row field">
+        <div>
+          <span class="label">Picture width</span>
+          <input id="picW" type="number" min="1" step="0.1" value="6">
+        </div>
+        <div>
+          <span class="label">Picture height</span>
+          <input id="picH" type="number" min="1" step="0.1" value="6">
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <span class="label">Resize mode</span>
+          <label><input type="radio" name="resizeMode" value="fit" checked> Fit (no crop)</label>
+          <label style="margin-left:8px"><input type="radio" name="resizeMode" value="fill"> Fill (crop)</label>
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <span class="label">JPEG quality (0.3 – 0.95)</span>
+          <input id="jpegQ" type="number" min="0.3" max="0.95" step="0.05" value="0.70">
+        </div>
+        <div>
+          <span class="label">Convert PNG/WebP to JPEG</span>
+          <label><input id="forceJpeg" type="checkbox" checked> Recommended</label>
+        </div>
+        <div>
+          <span class="label">Preserve transparency (PNG)</span>
+          <label><input id="preserveAlpha" type="checkbox"> Use PNG (larger)</label>
+        </div>
+        <div>
+          <span class="label">Background color (when alpha not preserved)</span>
+          <input id="bgColor" type="color" value="#ffffff">
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <span class="label">Notes row height (cm)</span>
+          <input id="notesH" type="number" min="0.5" step="0.1" value="2.0">
+        </div>
+        <div>
+          <span class="label">Excel file name</span>
+          <input id="xlsxName" type="text" value="images.xlsx">
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">Actions</span>
+        <div class="bar">
+          <button class="btn" id="selectBtn" type="button">Select images</button>
+          <button class="btn secondary" id="clearBtn" type="button">Clear</button>
+          <button class="btn" id="downloadXlsxBtn" type="button">Download .xlsx</button>
+        </div>
+        <div id="status" class="muted" style="margin-top:8px">
+          ExcelJS: <span id="excelStatus" class="bad">not loaded</span> · Files: <span id="fileCount">0</span> · Est. total after compression: <span id="estTotal">0 KB</span>
+        </div>
+        <div class="tip">Mobile tip: on iPhone Photos, tap <b>Select</b> to choose multiple; or use the <b>Files</b> picker to multi‑select.</div>
+      </div>
+      <!-- Two inputs: hidden primary + visible fallback for mobile Safari -->
+      <input id="fileHidden" type="file" accept="image/*" multiple style="display:none" />
+      <input id="fileVisible" type="file" accept="image/*" multiple style="display:none" />
+    </div>
+
+    <div class="card">
+      <h2>Images</h2>
+      <div id="dropzone">Drag & drop images here</div>
+      <div id="gallery" style="margin-top:10px"></div>
+    </div>
   </div>
-</header>
 
-<main class="layout" aria-label="Main layout">
-  <!-- Sidebar -->
-  <aside class="sidebar" aria-label="Controls">
-    <div class="field">
-      <div class="label">Size unit</div>
-      <div class="row" role="group" aria-label="Sizing unit">
-        <label><input type="radio" name="unit" value="cm" checked> CM</label>
-        <label><input type="radio" name="unit" value="px"> PX</label>
-      </div>
-      <div class="small">Use CM for print; PX for screen.</div>
-    </div>
+  <script>
+    // --- Helpers
+    const CM_TO_PX = 96 / 2.54; // 96dpi assumption
+    const PX_TO_POINTS = 72 / 96; // Excel row heights are in points
+    const toPx = (val, unit) => unit === 'cm' ? (parseFloat(val||0) * CM_TO_PX) : parseFloat(val||0);
+    const toPointsFromPx = (px) => px * PX_TO_POINTS;
+    const pixelsToExcelChars = (px) => Math.max(1, (px - 5) / 7);
 
-    <div class="field">
-      <label class="label" for="width">Width</label>
-      <input type="number" id="width" value="5" step="0.1">
-    </div>
-    <div class="field">
-      <label class="label" for="height">Height</label>
-      <input type="number" id="height" value="5" step="0.1">
-    </div>
+    const filesState = []; window.filesState = filesState;
 
-    <div class="field">
-      <div class="label">Resize mode</div>
-      <div class="chips" role="group" aria-label="Resize mode">
-        <label class="chip"><input type="radio" name="resize" value="fit" checked> Fit (no stretch)</label>
-        <label class="chip"><input type="radio" name="resize" value="fill"> Fill (crop)</label>
-      </div>
-    </div>
+    function updateStatus(){
+      const excelOk = !!window.ExcelJS;
+      document.getElementById('excelStatus').textContent = excelOk ? 'loaded' : 'not loaded';
+      document.getElementById('excelStatus').className = excelOk ? 'ok' : 'bad';
+      document.getElementById('fileCount').textContent = String(filesState.length);
+    }
+    function setEstTotal(bytes){
+      const kb = Math.round(bytes/1024);
+      document.getElementById('estTotal').textContent = kb + ' KB';
+    }
 
-    <div class="field">
-      <label class="label" for="padColor">Padding color</label>
-      <input type="color" id="padColor" value="#ffffff">
-    </div>
+    // Ensure attributes for mobile multi-select
+    function ensureMobileAttrs(el){
+      if (!el) return;
+      el.setAttribute('accept','image/*');
+      el.setAttribute('multiple','');
+      // Avoid forcing camera-only flow on mobile; keep it a gallery/files picker
+      el.removeAttribute('capture');
+    }
 
-    <!-- Hidden transparency UI per your request -->
-    <div class="hidden">
-      <label><input type="checkbox" id="preserveAlpha" checked> Preserve PNG/WebP alpha</label>
-    </div>
+    const hiddenInput = document.getElementById('fileHidden');
+    const visibleInput = document.getElementById('fileVisible');
+    ensureMobileAttrs(hiddenInput); ensureMobileAttrs(visibleInput);
 
-    <div class="field">
-      <label class="label" for="quality">JPEG quality</label>
-      <input type="number" id="quality" value="0.80" step="0.05" min="0" max="1">
-    </div>
+    function appendFiles(list){
+      Array.from(list||[]).forEach(f=>{ if (f && (f.type||'').startsWith('image/')) filesState.push(f); });
+    }
 
-    <div class="field">
-      <div class="label">Notes under image</div>
-      <div class="row">
-        <label><input type="checkbox" id="notesLine" checked> Enable</label>
-        <label><input type="checkbox" id="mergeAC" checked> Merge A..C</label>
-      </div>
-    </div>
+    function handleChange(e){
+      const files = Array.from(e.target.files||[]).filter(f=>f.type.startsWith('image/'));
+      addCards(files);
+      updateStatus();
+      estimateCompressedTotal().catch(()=>{});
+    }
 
-    <div class="field">
-      <label class="label" for="notesRowHeight">Notes row height (cm)</label>
-      <input type="number" id="notesRowHeight" value="0.8" step="0.1">
-    </div>
+    hiddenInput.addEventListener('change', handleChange);
+    visibleInput.addEventListener('change', handleChange);
 
-    <div class="field">
-      <label class="label" for="fname">Excel file name</label>
-      <input type="text" id="fname" placeholder="e.g., A4-3x3-images">
-      <label style="margin-top:6px"><input type="checkbox" id="timestamp"> Append timestamp</label>
-    </div>
+    document.getElementById('selectBtn').addEventListener('click', function(){
+      try { if (hiddenInput.showPicker) hiddenInput.showPicker(); } catch(e) {}
+      try { hiddenInput.click(); }
+      catch(e){
+        // iOS Safari sometimes blocks programmatic click on hidden inputs
+        visibleInput.style.display = 'block';
+        visibleInput.click();
+        // Hide again after interaction
+        setTimeout(()=>{ visibleInput.style.display='none'; }, 2000);
+      }
+    });
 
-    <div class="field">
-      <div class="label">Pagination</div>
-      <label><input type="checkbox" id="autoPaginate" checked> Auto paginate (9 per sheet)</label>
-    </div>
-  </aside>
+    // Drag & drop
+    const dropzone = document.getElementById('dropzone');
+    ['dragenter','dragover'].forEach(evt=> dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); dropzone.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(evt=> dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); dropzone.classList.remove('dragover'); }));
+    dropzone.addEventListener('drop', (e)=>{
+      const files = Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/'));
+      addCards(files);
+      updateStatus();
+      estimateCompressedTotal().catch(()=>{});
+    });
 
-  <!-- Content -->
-  <section class="content" aria-label="Workspace">
-    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop images here or use action bar below">
-      Drag & drop images here or use the action bar below.
-    </div>
-    <div class="gallery" id="gallery" aria-live="polite"></div>
+    // Clear
+    document.getElementById('clearBtn').addEventListener('click', ()=>{
+      filesState.splice(0, filesState.length);
+      document.getElementById('gallery').innerHTML = '';
+      setEstTotal(0);
+      updateStatus();
+    });
 
-    <!-- SINGLE action bar only -->
-    <div class="action-bar" aria-label="Actions">
-      <button class="btn" id="selectImagesBar">Select images</button>
-      <button class="btn" id="uniformBar">Uniform preview</button>
-      <button class="btn danger" id="clearBar">Clear</button>
-      <button class="btn primary" id="downloadBar">Download .xlsx</button>
-    </div>
-  </section>
-</main>
+    // Gallery
+    function addCards(files){
+      const gallery = document.getElementById('gallery');
+      files.forEach(file=>{
+        filesState.push(file);
+        const url = URL.createObjectURL(file);
+        const div = document.createElement('div'); div.className='thumb';
+        div.innerHTML = `<img src="${url}" alt="${file.name}"><div class="meta"><span>${file.name}</span><span class="remove">Remove</span></div>`;
+        div.querySelector('.remove').addEventListener('click', ()=>{
+          const i = filesState.indexOf(file); if(i>-1) filesState.splice(i,1);
+          URL.revokeObjectURL(url); div.remove(); updateStatus(); estimateCompressedTotal().catch(()=>{});
+        });
+        gallery.appendChild(div);
+      });
+    }
 
-<!-- Hidden and fallback file inputs -->
-<input type="file" id="hiddenInput" accept="image/*" multiple class="hidden"/>
-<input type="file" id="visibleInput" accept="image/*" multiple class="hidden"/>
+    // Canvas compression
+    function processToCanvas(img, targetW, targetH, mode){
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(targetW);
+      canvas.height = Math.round(targetH);
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const sw = img.naturalWidth, sh = img.naturalHeight; const sr = sw/sh; const dr = targetW/targetH;
+      let dw, dh, dx, dy;
+      if (mode === 'fill'){
+        if (sr > dr){ dh = targetH; dw = dh * sr; } else { dw = targetW; dh = dw / sr; }
+        dx = (targetW - dw)/2; dy = (targetH - dh)/2;
+      } else {
+        if (sr > dr){ dw = targetW; dh = dw / sr; dx = 0; dy = (targetH - dh)/2; }
+        else { dh = targetH; dw = dh * sr; dx = (targetW - dw)/2; dy = 0; }
+      }
+      ctx.drawImage(img, dx, dy, dw, dh);
+      return canvas;
+    }
 
-<script>
-// --- Helpers
-const CM_TO_PX = 96/2.54; const PX_TO_POINTS = 72/96;
-const toPx = (val, unit) => unit === 'cm' ? (parseFloat(val||0)*CM_TO_PX) : parseFloat(val||0);
-const toPointsFromPx = (px) => px * PX_TO_POINTS; const toPointsFromCm = (cm) => (cm/2.54)*72;
-const pixelsToExcelChars = (px) => Math.max(1,(px - 5)/7); // Calibri 11 mapping
+    async function fileToCompressedDataURL(file, targetW, targetH, opts){
+      const { mode, jpegQ, forceJpeg, preserveAlpha, bgColor } = opts;
+      return new Promise((resolve, reject)=>{
+        const img = new Image();
+        img.onload = () => {
+          const canvas = processToCanvas(img, targetW, targetH, mode);
+          const ctx = canvas.getContext('2d');
+          let mime = 'image/jpeg'; let quality = Math.min(Math.max(jpegQ||0.7, 0.3), 0.95);
+          const type = (file.type||'').toLowerCase();
+          const wantsPng = preserveAlpha && /png|webp/.test(type) && !forceJpeg;
+          if (wantsPng){
+            mime = 'image/png'; quality = undefined;
+          } else {
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = bgColor || '#ffffff';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+          }
+          const dataUrl = canvas.toDataURL(mime, quality);
+          resolve({ dataUrl, width: canvas.width, height: canvas.height, mime });
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
 
-const gallery = document.getElementById('gallery');
-const filesState = [];
+    async function estimateCompressedTotal(){
+      const unit = document.querySelector("input[name='unit']:checked").value;
+      const targetW = toPx(document.getElementById('picW').value, unit);
+      const targetH = toPx(document.getElementById('picH').value, unit);
+      const mode = document.querySelector("input[name='resizeMode']:checked").value;
+      const jpegQ = parseFloat(document.getElementById('jpegQ').value||'0.7');
+      const forceJpeg = document.getElementById('forceJpeg').checked;
+      const preserveAlpha = document.getElementById('preserveAlpha').checked;
+      const bgColor = document.getElementById('bgColor').value;
+      let total = 0;
+      for (const f of filesState){
+        try{
+          const {dataUrl} = await fileToCompressedDataURL(f, targetW, targetH, {mode,jpegQ,forceJpeg,preserveAlpha,bgColor});
+          total += Math.round((dataUrl.length * 3)/4);
+        }catch{}
+      }
+      setEstTotal(total);
+      return total;
+    }
 
-// Dropzone
-const drop = document.getElementById('dropzone');
-['dragenter','dragover'].forEach(evt=> drop.addEventListener(evt,e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
-['dragleave','drop'].forEach(evt=> drop.addEventListener(evt,e=>{ e.preventDefault(); drop.classList.remove('dragover'); }));
-drop.addEventListener('drop',(e)=>{ e.preventDefault(); const files=Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/')); addCards(files); });
+    // Build Excel: 3 images per row + notes row beneath, with compression
+    document.getElementById('downloadXlsxBtn').addEventListener('click', async function(){
+      try {
+        updateStatus();
+        for (let i=0; i<15 && !window.ExcelJS; i++) { await new Promise(r=>setTimeout(r,100)); }
+        if (!window.ExcelJS){ alert('ExcelJS not loaded. Place exceljs.min.js next to this HTML or allow CDN.'); return; }
+        if (!filesState.length){ alert('No images selected.'); return; }
+        
+        const unit = document.querySelector("input[name='unit']:checked").value;
+        const targetW = toPx(document.getElementById('picW').value, unit);
+        const targetH = toPx(document.getElementById('picH').value, unit);
+        const mode = document.querySelector("input[name='resizeMode']:checked").value;
+        const jpegQ = parseFloat(document.getElementById('jpegQ').value||'0.7');
+        const forceJpeg = document.getElementById('forceJpeg').checked;
+        const preserveAlpha = document.getElementById('preserveAlpha').checked;
+        const bgColor = document.getElementById('bgColor').value;
+        const notesHeightCm = parseFloat(document.getElementById('notesH').value||'2');
+        const notesHeightPts = toPointsFromPx(notesHeightCm * CM_TO_PX);
+        const colWidthChars = pixelsToExcelChars(targetW);
+        const xlsxName = (document.getElementById('xlsxName').value||'images.xlsx').trim();
 
-// File picker (single place wiring)
-const hiddenInput = document.getElementById('hiddenInput'); const visibleInput = document.getElementById('visibleInput');
-function openPicker(){ try{ hiddenInput.click(); }catch{ visibleInput.classList.remove('hidden'); visibleInput.click(); } }
-hiddenInput.addEventListener('change',(e)=> addCards(Array.from(e.target.files||[])));
-visibleInput.addEventListener('change',(e)=>{ addCards(Array.from(e.target.files||[])); visibleInput.classList.add('hidden'); });
-document.getElementById('selectImagesBar').addEventListener('click', openPicker);
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'Pic → Excel (Compressed, Mobile)'; wb.created = new Date();
+        const ws = wb.addWorksheet('Pics');
+        ws.columns = [ { key:'c1', width: colWidthChars }, { key:'c2', width: colWidthChars }, { key:'c3', width: colWidthChars } ];
 
-// Cards
-function addCards(files){ files.forEach(file=>{ filesState.push(file); const url=URL.createObjectURL(file); const card=document.createElement('div'); card.className='card'; card.innerHTML=`<img src="${url}" alt="${file.name}"><div class="meta"><span class="small">${file.name}</span><div class="actions"><button class="btn">Remove</button></div></div>`; card.querySelector('.actions .btn').addEventListener('click',()=>{ const i=filesState.indexOf(file); if(i>-1) filesState.splice(i,1); URL.revokeObjectURL(url); card.remove(); }); gallery.appendChild(card); }); }
+        const imagesData = [];
+        for (const file of filesState){
+          const processed = await fileToCompressedDataURL(file, targetW, targetH, {mode, jpegQ, forceJpeg, preserveAlpha, bgColor});
+          const ext = /png/.test(processed.mime) ? 'png' : 'jpeg';
+          const imgId = wb.addImage({ base64: processed.dataUrl, extension: ext });
+          imagesData.push({ id: imgId, width: processed.width, height: processed.height });
+        }
 
-// Canvas processing
-function processImageToCanvas(file,widthPx,heightPx,mode,padColor){ return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>{ const canvas=document.createElement('canvas'); canvas.width=Math.round(widthPx); canvas.height=Math.round(heightPx); const ctx=canvas.getContext('2d'); const preserveAlpha = true; if(!(preserveAlpha && (/png|webp/i).test(file.type))){ ctx.fillStyle=padColor; ctx.fillRect(0,0,canvas.width,canvas.height); } const sw=img.naturalWidth, sh=img.naturalHeight; const sr=sw/sh; const dr=widthPx/heightPx; let dw,dh,dx,dy; if(mode==='fill'){ if(sr>dr){ dh=heightPx; dw=dh*sr; } else { dw=widthPx; dh=dw/sr; } dx=(widthPx-dw)/2; dy=(heightPx-dh)/2; ctx.drawImage(img,dx,dy,dw,dh); } else { if(sr>dr){ dw=widthPx; dh=dw/sr; dx=0; dy=(heightPx-dh)/2; } else { dh=heightPx; dw=dh*sr; dx=(widthPx-dw)/2; dy=0; } ctx.drawImage(img,dx,dy,dw,dh); } resolve(canvas); }; img.onerror=reject; img.src=URL.createObjectURL(file); }); }
+        let currentRow = 1;
+        const imgRowHeightPts = toPointsFromPx(targetH);
+        const groups = [];
+        for (let i=0; i<imagesData.length; i+=3){ groups.push(imagesData.slice(i, i+3)); }
 
-async function uniformPreview(){ const unit=document.querySelector("input[name='unit']:checked").value; const w=parseFloat(document.getElementById('width').value||'5'); const h=parseFloat(document.getElementById('height').value||'5'); const mode=document.querySelector("input[name='resize']:checked").value; const padColor=document.getElementById('padColor').value||'#ffffff'; const widthPx=toPx(w,unit), heightPx=toPx(h,unit); const current=[...filesState]; gallery.innerHTML=''; for(const file of current){ const canvas=await processImageToCanvas(file,widthPx,heightPx,mode,padColor); const url=canvas.toDataURL('image/png'); const card=document.createElement('div'); card.className='card'; card.innerHTML=`<img src="${url}" alt="${file.name}"><div class="meta"><span class="small">${file.name}</span><div class="actions"><button class="btn">Remove</button></div></div>`; card.querySelector('.actions .btn').addEventListener('click',()=>{ const i=filesState.indexOf(file); if(i>-1) filesState.splice(i,1); card.remove(); }); gallery.appendChild(card);} }
+        groups.forEach(group => {
+          ws.getRow(currentRow).height = imgRowHeightPts;
+          ws.getRow(currentRow+1).height = notesHeightPts;
+          group.forEach((img, idx)=>{
+            ws.addImage(img.id, { tl: { col: idx, row: currentRow-1 }, ext: { width: Math.round(targetW), height: Math.round(targetH) } });
+          });
+          ws.mergeCells(currentRow+1, 1, currentRow+1, 3);
+          const cell = ws.getCell(currentRow+1, 1);
+          cell.value = 'Notes:'; cell.alignment = { vertical:'top' };
+          cell.border = { top:{style:'thin', color:{argb:'FFBFBFBF'}}, left:{style:'thin', color:{argb:'FFBFBFBF'}}, right:{style:'thin', color:{argb:'FFBFBFBF'}}, bottom:{style:'thin', color:{argb:'FFBFBFBF'}} };
+          currentRow += 2;
+        });
 
-document.getElementById('uniformBar').addEventListener('click', uniformPreview);
+        ws.views = [{ showGridLines: true }];
 
-document.getElementById('clearBar').addEventListener('click',()=>{ gallery.innerHTML=''; filesState.length=0; });
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.style.display='none'; a.href = url; a.download = xlsxName || 'images.xlsx';
+        document.body.appendChild(a); a.click();
+        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+      } catch(err) {
+        console.error(err);
+        alert('Failed to generate .xlsx: ' + (err && err.message ? err.message : err));
+      }
+    });
 
-// Excel export
-async function exportExcel(){ if(!window.ExcelJS){ alert('ExcelJS not loaded'); return; } const unit=document.querySelector("input[name='unit']:checked").value; const w=parseFloat(document.getElementById('width').value||'5'); const h=parseFloat(document.getElementById('height').value||'5'); const mode=document.querySelector("input[name='resize']:checked").value; const padColor=document.getElementById('padColor').value||'#ffffff'; const quality=Math.min(Math.max(parseFloat(document.getElementById('quality').value||'0.8'),0),1); const includeNotes=document.getElementById('notesLine').checked; const mergeAC=document.getElementById('mergeAC').checked; const fname=(document.getElementById('fname').value||'A4-3x3-images'); const stamp=document.getElementById('timestamp').checked?('-'+new Date().toISOString().replace(/[:.]/g,'').slice(0,15)) : ''; const autoPaginate=document.getElementById('autoPaginate').checked; const widthPx=toPx(w,unit), heightPx=toPx(h,unit); const targetPts = unit==='cm' ? toPointsFromCm(h) : toPointsFromPx(heightPx); const perSheet=9; const total=filesState.length; const pages=autoPaginate?Math.max(1,Math.ceil(total/perSheet)):1; const wb=new ExcelJS.Workbook(); for(let p=0;p<pages;p++){ const ws=wb.addWorksheet('Sheet'+(p+1),{ pageSetup:{ paperSize:9, orientation:'portrait', fitToPage:true, fitToHeight:1, fitToWidth:1, margins:{ left:0.7, right:0.7, top:0.75, bottom:0.75, header:0.3, footer:0.3 } } }); const perColPx = widthPx/3; const perColChars = pixelsToExcelChars(perColPx); ws.columns=[ {width:perColChars},{width:perColChars},{width:perColChars},{width:2}, {width:perColChars},{width:perColChars},{width:perColChars},{width:2}, {width:perColChars},{width:perColChars},{width:perColChars} ]; const startIndex=p*perSheet; const endIndex=Math.min(total,startIndex+perSheet); const perRow=3; let imgIndex=0; const baseRowPts=18; const tileRows=Math.max(4, Math.ceil(targetPts/baseRowPts)); const perRowHeightPts=targetPts/tileRows; const notesRowPts=parseFloat(document.getElementById('notesRowHeight').value||'0')>0 ? toPointsFromCm(parseFloat(document.getElementById('notesRowHeight').value)) : 0; const spacerRows=1; for(let i=startIndex;i<endIndex;i++){ const file=filesState[i]; const canvas=await processImageToCanvas(file,widthPx,heightPx,mode,padColor); const usePNG=true; const dataURL=canvas.toDataURL(usePNG?'image/png':'image/jpeg', usePNG?undefined:quality); const base64=dataURL.split(',')[1]; const imageId=wb.addImage({ base64, extension: usePNG?'png':'jpeg' }); const colGroupIndex=imgIndex%perRow; const rowGroupIndex=Math.floor(imgIndex/perRow); const groupStarts=[0,4,8]; const tlCol=groupStarts[colGroupIndex]; const blockRows = tileRows + (includeNotes?1:0) + spacerRows; const tlRow = rowGroupIndex * blockRows; const brCol=tlCol+3; const brRow=tlRow+tileRows; for(let r=0;r<tileRows;r++){ ws.getRow(tlRow + 1 + r).height = perRowHeightPts; } ws.addImage(imageId,{ tl:{ col:tlCol, row:tlRow }, br:{ col:brCol, row:brRow }, editAs:'twoCell' }); if(includeNotes){ const notesRowIdx=brRow+1; const excelRow=ws.getRow(notesRowIdx); if(notesRowPts>0){ excelRow.height=notesRowPts; } if(mergeAC){ const mergeStart=['A','E','I'][colGroupIndex]+notesRowIdx; const mergeEnd=['C','G','K'][colGroupIndex]+notesRowIdx; ws.mergeCells(`${mergeStart}:${mergeEnd}`); } excelRow.alignment={ wrapText:true, vertical:'top' }; excelRow.font={ size:11 }; } imgIndex++; } } const buffer=await wb.xlsx.writeBuffer(); const blob=new Blob([buffer],{ type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${fname}${stamp}.xlsx`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); }
-
-document.getElementById('downloadBar').addEventListener('click', exportExcel);
-</script>
+    // Initial status
+    updateStatus();
+    window.addEventListener('load', updateStatus);
+  </script>
 </body>
 </html>
