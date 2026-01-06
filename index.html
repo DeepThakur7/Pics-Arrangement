@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pic → Excel (3 per row + notes, compressed, mobile-friendly)</title>
+  <title>Pic → Excel (Mobile multi-select, compressed)</title>
   <style>
     :root { --accent:#0067b8; --bg:#f6f8fb; --border:#d0d4da; }
     body { font-family: Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:#222; }
@@ -11,7 +11,7 @@
     h1 { font-size:18px; margin:0 0 4px 0; }
     .subtitle{ font-size:12px; color:#555; }
     .grid { display:grid; grid-template-columns: 1fr; gap:12px; padding:12px; }
-    @media (min-width:900px){ .grid{ grid-template-columns: 340px 1fr; } }
+    @media (min-width:900px){ .grid{ grid-template-columns: 360px 1fr; } }
     .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px; }
     .card h2 { font-size:14px; margin:0 0 8px 0; }
     .field { margin:8px 0; }
@@ -23,7 +23,7 @@
     .btn { background: var(--accent); color:#fff; border:none; border-radius:6px; padding:10px 14px; cursor:pointer; }
     .btn:disabled { opacity:.6; cursor:not-allowed; }
     .btn.secondary{ background:#444; }
-    .bar { display:flex; gap:8px; flex-wrap:wrap; }
+    .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .muted { color:#666; font-size:12px; }
     #dropzone { border:2px dashed var(--border); border-radius:8px; background:#fff; padding:16px; text-align:center; color:#666; }
     #dropzone.dragover{ background:#eef6ff; border-color:#99c4f2; color:#2c5a90; }
@@ -36,6 +36,11 @@
     #status .ok{ color: #047857; }
     #status .bad{ color: #b91c1c; }
     .tip { font-size:12px; color:#555; margin-top:6px; }
+    
+    /* Make input visible and finger-friendly on mobile */
+    .file-chooser { display:inline-block; position:relative; }
+    .file-chooser input[type=file]{ display:block; width:1px; height:1px; opacity:0; position:absolute; left:-9999px; }
+    .file-chooser label{ display:inline-block; background:var(--accent); color:#fff; padding:10px 14px; border-radius:6px; cursor:pointer; }
   </style>
   <!-- ExcelJS via CDN + fallback -->
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
@@ -48,8 +53,8 @@
 </head>
 <body>
   <header>
-    <h1>Export Images to Excel — 3 per row + notes (compressed, mobile‑friendly)</h1>
-    <div class="subtitle">Works on mobile: select multiple from Photos or Files; compress before export to reduce .xlsx size.</div>
+    <h1>Export Images to Excel — 3 per row + notes (compressed, mobile multi‑select)</h1>
+    <div class="subtitle">Select multiple images on mobile (Photos or Files), compress them, and export to Excel (3 images per row + notes row).</div>
   </header>
 
   <div class="grid">
@@ -108,23 +113,27 @@
       <div class="field">
         <span class="label">Actions</span>
         <div class="bar">
-          <button class="btn" id="selectBtn" type="button">Select images</button>
+          <div class="file-chooser">
+            <input id="fileInput" type="file" accept="image/*" multiple />
+            <label for="fileInput">Select images</label>
+          </div>
           <button class="btn secondary" id="clearBtn" type="button">Clear</button>
           <button class="btn" id="downloadXlsxBtn" type="button">Download .xlsx</button>
         </div>
         <div id="status" class="muted" style="margin-top:8px">
           ExcelJS: <span id="excelStatus" class="bad">not loaded</span> · Files: <span id="fileCount">0</span> · Est. total after compression: <span id="estTotal">0 KB</span>
         </div>
-        <div class="tip">Mobile tip: on iPhone Photos, tap <b>Select</b> to choose multiple; or use the <b>Files</b> picker to multi‑select.</div>
+        <div class="tip">Mobile tips:
+          <ul>
+            <li>On iPhone, open the picker and choose <b>Photos</b> or <b>Files</b>. In Photos, tap <b>Select</b> to choose multiple.</li>
+            <li>On Android, use the <b>Gallery</b> or <b>Files</b> app and multi‑select before tapping <b>Open</b>.</li>
+          </ul>
+        </div>
       </div>
-      <!-- Two inputs: hidden primary + visible fallback for mobile Safari -->
-      <input id="fileHidden" type="file" accept="image/*" multiple style="display:none" />
-      <input id="fileVisible" type="file" accept="image/*" multiple style="display:none" />
     </div>
 
     <div class="card">
       <h2>Images</h2>
-      <div id="dropzone">Drag & drop images here</div>
       <div id="gallery" style="margin-top:10px"></div>
     </div>
   </div>
@@ -150,55 +159,17 @@
       document.getElementById('estTotal').textContent = kb + ' KB';
     }
 
-    // Ensure attributes for mobile multi-select
-    function ensureMobileAttrs(el){
-      if (!el) return;
-      el.setAttribute('accept','image/*');
-      el.setAttribute('multiple','');
-      // Avoid forcing camera-only flow on mobile; keep it a gallery/files picker
-      el.removeAttribute('capture');
-    }
-
-    const hiddenInput = document.getElementById('fileHidden');
-    const visibleInput = document.getElementById('fileVisible');
-    ensureMobileAttrs(hiddenInput); ensureMobileAttrs(visibleInput);
-
-    function appendFiles(list){
-      Array.from(list||[]).forEach(f=>{ if (f && (f.type||'').startsWith('image/')) filesState.push(f); });
-    }
-
+    // Append files across multiple picks
+    const fileInput = document.getElementById('fileInput');
     function handleChange(e){
-      const files = Array.from(e.target.files||[]).filter(f=>f.type.startsWith('image/'));
+      const files = Array.from(e.target.files||[]).filter(f=> (f.type||'').startsWith('image/'));
       addCards(files);
       updateStatus();
       estimateCompressedTotal().catch(()=>{});
+      // Reset input value to allow re‑picking same files again
+      e.target.value = '';
     }
-
-    hiddenInput.addEventListener('change', handleChange);
-    visibleInput.addEventListener('change', handleChange);
-
-    document.getElementById('selectBtn').addEventListener('click', function(){
-      try { if (hiddenInput.showPicker) hiddenInput.showPicker(); } catch(e) {}
-      try { hiddenInput.click(); }
-      catch(e){
-        // iOS Safari sometimes blocks programmatic click on hidden inputs
-        visibleInput.style.display = 'block';
-        visibleInput.click();
-        // Hide again after interaction
-        setTimeout(()=>{ visibleInput.style.display='none'; }, 2000);
-      }
-    });
-
-    // Drag & drop
-    const dropzone = document.getElementById('dropzone');
-    ['dragenter','dragover'].forEach(evt=> dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); dropzone.classList.add('dragover'); }));
-    ['dragleave','drop'].forEach(evt=> dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); dropzone.classList.remove('dragover'); }));
-    dropzone.addEventListener('drop', (e)=>{
-      const files = Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/'));
-      addCards(files);
-      updateStatus();
-      estimateCompressedTotal().catch(()=>{});
-    });
+    fileInput.addEventListener('change', handleChange);
 
     // Clear
     document.getElementById('clearBtn').addEventListener('click', ()=>{
@@ -311,7 +282,7 @@
         const xlsxName = (document.getElementById('xlsxName').value||'images.xlsx').trim();
 
         const wb = new ExcelJS.Workbook();
-        wb.creator = 'Pic → Excel (Compressed, Mobile)'; wb.created = new Date();
+        wb.creator = 'Pic → Excel (Mobile Multi-select)'; wb.created = new Date();
         const ws = wb.addWorksheet('Pics');
         ws.columns = [ { key:'c1', width: colWidthChars }, { key:'c2', width: colWidthChars }, { key:'c3', width: colWidthChars } ];
 
