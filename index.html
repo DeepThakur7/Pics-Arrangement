@@ -3,278 +3,313 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pic → Excel (Mobile multi-select via showOpenFilePicker)</title>
+  <title>Pics Sorting and Arrangement in Excel</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <style>
-    :root { --accent:#0067b8; --bg:#f6f8fb; --border:#d0d4da; }
-    body { font-family: Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:#222; }
-    header { padding:12px 16px; background:#fff; border-bottom:1px solid var(--border); }
-    h1 { font-size:18px; margin:0 0 4px 0; }
-    .subtitle{ font-size:12px; color:#555; }
-    .grid { display:grid; grid-template-columns: 1fr; gap:12px; padding:12px; }
-    @media (min-width:900px){ .grid{ grid-template-columns: 360px 1fr; } }
-    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px; }
-    .card h2 { font-size:14px; margin:0 0 8px 0; }
-    .field { margin:8px 0; }
-    .label { font-size:12px; color:#555; display:block; margin-bottom:4px; }
-    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    input[type="number"]{ width:100px; padding:6px; }
-    input[type="text"]{ padding:6px; width:220px; }
-    input[type="color"]{ width:44px; height:28px; padding:0; }
-    .btn { background: var(--accent); color:#fff; border:none; border-radius:6px; padding:10px 14px; cursor:pointer; }
-    .btn:disabled { opacity:.6; cursor:not-allowed; }
-    .btn.secondary{ background:#444; }
-    .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .muted { color:#666; font-size:12px; }
-    #gallery { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
-    .thumb { border:1px solid var(--border); border-radius:8px; padding:6px; background:#fff; }
-    .thumb img { width:100%; height:120px; object-fit:cover; border-radius:4px; }
-    .thumb .meta { font-size:11px; margin-top:6px; display:flex; justify-content:space-between; align-items:center; }
-    .thumb .remove { font-size:11px; color:#a00; cursor:pointer; }
-    #status { font-size:12px; color:#333; }
-    #status .ok{ color: #047857; }
-    #status .bad{ color: #b91c1c; }
-    .tip { font-size:12px; color:#555; margin-top:6px; }
-    
-    .file-chooser { display:inline-block; position:relative; }
-    .file-chooser input[type=file]{ display:block; width:1px; height:1px; opacity:0; position:absolute; left:-9999px; }
-    .file-chooser label{ display:inline-block; background:var(--accent); color:#fff; padding:10px 14px; border-radius:6px; cursor:pointer; }
+    :root{ --accent:#0067b8; --bg:#f4f6f9; --panel:#ffffff; --border:#d8dde4; --text:#1f2937; --muted:#6b7280; --success:#047857; --danger:#b91c1c; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
+    header{background:#fff;border-bottom:1px solid var(--border);padding:16px 20px}
+    header h1{margin:0;font-size:20px;font-weight:600}
+    main{display:grid;grid-template-columns:1fr;gap:16px;padding:16px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+    .panel h2{font-size:14px;margin:0 0 10px}
+    .field{margin-bottom:10px}
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,select,button{font:inherit}
+    input[type="number"],input[type="text"]{width:100%;padding:7px}
+    .small{width:120px}
+    button{border:0;border-radius:7px;padding:9px 14px;cursor:pointer;font-weight:600}
+    .primary{background:var(--accent);color:#fff}
+    .secondary{background:#374151;color:#fff}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .top-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+    .status{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .status .ok{color:var(--success)}
+    .status .bad{color:var(--danger)}
+    #gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+    .thumb{background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px}
+    .thumb img{width:100%;height:140px;object-fit:cover;border-radius:4px}
+    .thumb footer{font-size:11px;display:flex;justify-content:space-between;margin-top:6px}
+    .thumb .remove{color:var(--danger);cursor:pointer}
+    .hint{font-size:12px;color:var(--muted);background:#fff;border:1px dashed var(--border);border-radius:8px;padding:8px;margin-top:8px}
   </style>
-  <!-- ExcelJS via CDN + fallback -->
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
-  <script>
-    (function ensureExcelJS(){
-      function loadLocal(){ var s=document.createElement('script'); s.src='exceljs.min.js'; document.head.appendChild(s); }
-      window.addEventListener('load', function(){ if(!window.ExcelJS){ loadLocal(); } });
-    })();
-  </script>
 </head>
 <body>
   <header>
-    <h1>Export Images to Excel — 3 per row + notes (mobile multi‑select)</h1>
-    <div class="subtitle">Uses <code>showOpenFilePicker</code> when available (Android Chrome, many modern browsers); falls back to visible input for iOS Safari.</div>
+    <h1>Pics Sorting and Arrangement in Excel</h1>
   </header>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Layout & Compression</h2>
-      <div class="field">
-        <span class="label">Unit</span>
-        <label><input type="radio" name="unit" value="cm" checked> cm</label>
-        <label style="margin-left:8px"><input type="radio" name="unit" value="px"> px</label>
+  <main>
+    <!-- SETTINGS (Top) -->
+    <section class="panel" aria-label="Settings">
+      <div class="top-actions" aria-label="Top actions">
+        <button class="secondary" id="clearBtn" type="button">Clear</button>
+        <button class="primary" id="downloadXlsxBtn" type="button">⬇ Download Excel</button>
+        <input id="fileInput" type="file" multiple accept="image/*" hidden>
+        <button id="addBtn" class="secondary" type="button" aria-label="Add images">➕ Add images</button>
       </div>
-      <div class="row field">
-        <div>
-          <span class="label">Picture width</span>
-          <input id="picW" type="number" min="1" step="0.1" value="6">
-        </div>
-        <div>
-          <span class="label">Picture height</span>
-          <input id="picH" type="number" min="1" step="0.1" value="6">
-        </div>
-      </div>
-      <div class="row field">
-        <div>
-          <span class="label">Resize mode</span>
-          <label><input type="radio" name="resizeMode" value="fit" checked> Fit (no crop)</label>
-          <label style="margin-left:8px"><input type="radio" name="resizeMode" value="fill"> Fill (crop)</label>
-        </div>
-      </div>
-      <div class="row field">
-        <div>
-          <span class="label">JPEG quality (0.3 – 0.95)</span>
-          <input id="jpegQ" type="number" min="0.3" max="0.95" step="0.05" value="0.70">
-        </div>
-        <div>
-          <span class="label">Convert PNG/WebP to JPEG</span>
-          <label><input id="forceJpeg" type="checkbox" checked> Recommended</label>
-        </div>
-        <div>
-          <span class="label">Preserve transparency (PNG)</span>
-          <label><input id="preserveAlpha" type="checkbox"> Use PNG (larger)</label>
-        </div>
-        <div>
-          <span class="label">Background color (when alpha not preserved)</span>
-          <input id="bgColor" type="color" value="#ffffff">
-        </div>
-      </div>
-      <div class="row field">
-        <div>
-          <span class="label">Notes row height (cm)</span>
-          <input id="notesH" type="number" min="0.5" step="0.1" value="2.0">
-        </div>
-        <div>
-          <span class="label">Excel file name</span>
-          <input id="xlsxName" type="text" value="images.xlsx">
-        </div>
-      </div>
-      <div class="field">
-        <span class="label">Actions</span>
-        <div class="bar">
-          <div class="file-chooser">
-            <input id="fileInput" type="file" accept="image/*" multiple />
-            <label for="fileInput" id="selectLabel">Select images</label>
-          </div>
-          <button class="btn secondary" id="clearBtn" type="button">Clear</button>
-          <button class="btn" id="downloadXlsxBtn" type="button">Download .xlsx</button>
-        </div>
-        <div id="status" class="muted" style="margin-top:8px">
-          ExcelJS: <span id="excelStatus" class="bad">not loaded</span> · Files: <span id="fileCount">0</span> · Est. total after compression: <span id="estTotal">0 KB</span>
-        </div>
-        <div class="tip">If your phone's Photos picker only allows one image, use the <b>Files</b> option and then tap the <b>…</b> menu → <b>Select</b> to multi‑select.</div>
-      </div>
-    </div>
 
-    <div class="card">
-      <h2>Images</h2>
-      <div id="gallery" style="margin-top:10px"></div>
-    </div>
-  </div>
+      <h2>Picture Layout</h2>
+      <div class="field">
+        <label>Unit</label>
+        <div class="row" role="group" aria-label="unit selection">
+          <label><input type="radio" name="unit" value="cm" checked> cm</label>
+          <label><input type="radio" name="unit" value="px"> px</label>
+        </div>
+      </div>
+
+      <div class="row field">
+        <div>
+          <label>Width</label>
+          <input id="picW" class="small" type="number" value="6" step="0.1" min="1" aria-label="Picture width">
+        </div>
+        <div>
+          <label>Height</label>
+          <input id="picH" class="small" type="number" value="6" step="0.1" min="1" aria-label="Picture height">
+        </div>
+      </div>
+
+      <h2>Compression</h2>
+      <div class="field">
+        <label>Resize mode</label>
+        <div class="row" role="group" aria-label="resize mode">
+          <label><input type="radio" name="resizeMode" value="fit" checked> Fit (no crop)</label>
+          <label><input type="radio" name="resizeMode" value="fill"> Fill (crop)</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>JPEG quality (0.3–0.95)</label>
+        <input id="jpegQ" class="small" type="number" min="0.3" max="0.95" step="0.05" value="0.75" aria-label="JPEG quality">
+      </div>
+
+      <h2>Excel Output</h2>
+      <div class="row field">
+        <div>
+          <label>Notes height (cm)</label>
+          <input id="notesH" class="small" type="number" step="0.1" min="0.5" value="2" aria-label="Notes height">
+        </div>
+        <div>
+          <label>Excel file name</label>
+          <input id="xlsxName" type="text" value="images.xlsx" aria-label="Excel file name">
+        </div>
+      </div>
+
+      <div class="status">
+        <span>ExcelJS: <span id="excelStatus" class="bad">not loaded</span></span>
+        <span>Files: <span id="fileCount">0</span></span>
+      </div>
+    </section>
+
+    <!-- PREVIEW (Bottom) -->
+    <section class="panel" aria-label="Preview">
+      <h2>Image Preview</h2>
+      <div id="gallery" aria-live="polite"></div>
+    </section>
+  </main>
 
   <script>
-    const CM_TO_PX = 96 / 2.54; const PX_TO_POINTS = 72 / 96;
+    /* Constants & Helpers */
+    const CM_TO_PX = 96 / 2.54;   // Excel ~96 DPI mapping
+    const PX_TO_POINTS = 72 / 96; // row heights in points
+    const MAX_PPI = 150;          // ≤150 PPI effective resolution
+
     const toPx = (val, unit) => unit === 'cm' ? (parseFloat(val||0) * CM_TO_PX) : parseFloat(val||0);
     const toPointsFromPx = (px) => px * PX_TO_POINTS;
     const pixelsToExcelChars = (px) => Math.max(1, (px - 5) / 7);
 
-    const filesState = []; window.filesState = filesState;
+    /* State & Status */
+    const filesState = [];
+    const excelStatusEl = document.getElementById('excelStatus');
+    const fileCountEl = document.getElementById('fileCount');
+    const galleryEl = document.getElementById('gallery');
+
     function updateStatus(){
       const excelOk = !!window.ExcelJS;
-      document.getElementById('excelStatus').textContent = excelOk ? 'loaded' : 'not loaded';
-      document.getElementById('excelStatus').className = excelOk ? 'ok' : 'bad';
-      document.getElementById('fileCount').textContent = String(filesState.length);
+      excelStatusEl.textContent = excelOk ? 'loaded' : 'not loaded';
+      excelStatusEl.className = excelOk ? 'ok' : 'bad';
+      fileCountEl.textContent = String(filesState.length);
     }
-    function setEstTotal(bytes){ const kb = Math.round(bytes/1024); document.getElementById('estTotal').textContent = kb + ' KB'; }
 
-    // Visible input handler — always appends; resets value so re-pick works
+    /* File Selection & Gallery */
     const fileInput = document.getElementById('fileInput');
-    fileInput.addEventListener('change', (e)=>{
-      const files = Array.from(e.target.files||[]).filter(f=> (f.type||'').startsWith('image/'));
+    document.getElementById('addBtn').addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files||[]).filter(f => (f.type||'').startsWith('image/'));
       addCards(files);
-      updateStatus(); estimateCompressedTotal().catch(()=>{});
-      e.target.value = '';
+      updateStatus();
+      e.target.value = ''; // allow re-selecting same files
     });
 
-    // Progressive enhancement: showOpenFilePicker when supported
-    async function pickWithFSAccess(){
-      const types = [{ description: 'Images', accept: { 'image/*': ['.png','.jpg','.jpeg','.webp'] } }];
-      const opts = { multiple: true, types };
-      const handles = await window.showOpenFilePicker(opts);
-      const files = await Promise.all(handles.map(h=>h.getFile()));
-      addCards(files);
-      updateStatus(); estimateCompressedTotal().catch(()=>{});
-    }
-
-    // If API exists and we're in top-level browsing context, prefer it
-    const supportsFileSystemAccess = 'showOpenFilePicker' in window && (function(){ try{ return window.self === window.top; } catch{ return false; } })();
-    document.getElementById('selectLabel').addEventListener('click', async (ev)=>{
-      if (supportsFileSystemAccess){
-        ev.preventDefault(); // avoid focusing the input
-        try { await pickWithFSAccess(); } catch(e){ /* user canceled */ }
-      }
-      // else default label click will open the visible input
-    });
-
-    document.getElementById('clearBtn').addEventListener('click', ()=>{
+    document.getElementById('clearBtn').addEventListener('click', () => {
       filesState.splice(0, filesState.length);
-      document.getElementById('gallery').innerHTML = '';
-      setEstTotal(0); updateStatus();
+      galleryEl.innerHTML = '';
+      updateStatus();
     });
 
     function addCards(files){
-      const gallery = document.getElementById('gallery');
-      files.forEach(file=>{
+      files.forEach(file => {
         filesState.push(file);
         const url = URL.createObjectURL(file);
-        const div = document.createElement('div'); div.className='thumb';
-        div.innerHTML = `<img src="${url}" alt="${file.name}"><div class="meta"><span>${file.name}</span><span class="remove">Remove</span></div>`;
-        div.querySelector('.remove').addEventListener('click', ()=>{
-          const i = filesState.indexOf(file); if(i>-1) filesState.splice(i,1);
-          URL.revokeObjectURL(url); div.remove(); updateStatus(); estimateCompressedTotal().catch(()=>{});
+        const div = document.createElement('div');
+        div.className = 'thumb';
+        div.innerHTML = `
+          <img src="${url}" alt="${file.name}">
+          <footer>
+            <span title="${file.name}">${truncate(file.name, 22)}</span>
+            <span class="remove" role="button" aria-label="Remove">Remove</span>
+          </footer>
+        `;
+        div.querySelector('.remove').addEventListener('click', () => {
+          const i = filesState.indexOf(file);
+          if (i > -1) filesState.splice(i, 1);
+          URL.revokeObjectURL(url);
+          div.remove();
+          updateStatus();
         });
-        gallery.appendChild(div);
+        galleryEl.appendChild(div);
       });
     }
 
-    function processToCanvas(img, targetW, targetH, mode){
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(targetW); canvas.height = Math.round(targetH);
-      const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
-      const sw = img.naturalWidth, sh = img.naturalHeight; const sr = sw/sh; const dr = targetW/targetH;
-      let dw, dh, dx, dy;
-      if (mode === 'fill'){
-        if (sr > dr){ dh = targetH; dw = dh * sr; } else { dw = targetW; dh = dw / sr; }
-        dx = (targetW - dw)/2; dy = (targetH - dh)/2;
-      } else {
-        if (sr > dr){ dw = targetW; dh = dw / sr; dx = 0; dy = (targetH - dh)/2; } else { dh = targetH; dw = dh * sr; dx = (targetW - dw)/2; dy = 0; }
-      }
-      ctx.drawImage(img, dx, dy, dw, dh);
-      return canvas;
+    function truncate(str, n){
+      return (str.length > n) ? (str.slice(0, n-1) + '…') : str;
     }
 
-    function fileToCompressedDataURL(file, targetW, targetH, opts){
-      const { mode, jpegQ, forceJpeg, preserveAlpha, bgColor } = opts;
-      return new Promise((resolve, reject)=>{
+    /* Canvas Resampler (≤150 PPI) */
+    function processToCanvas(img, displayWpx, displayHpx, displayUnit, mode, jpegQuality){
+      const inchesW = (displayUnit === 'cm') ? (displayWpx / CM_TO_PX) / 2.54 * 96/96 : (displayWpx / 96);
+      const inchesH = (displayUnit === 'cm') ? (displayHpx / CM_TO_PX) / 2.54 * 96/96 : (displayHpx / 96);
+      const targetSrcW = Math.max(1, Math.round(inchesW * MAX_PPI));
+      const targetSrcH = Math.max(1, Math.round(inchesH * MAX_PPI));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetSrcW;
+      canvas.height = targetSrcH;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      const sw = img.naturalWidth, sh = img.naturalHeight;
+      const sr = sw / sh;
+      const dr = targetSrcW / targetSrcH;
+      let dw, dh, dx, dy;
+      if (mode === 'fill'){
+        if (sr > dr){ dh = targetSrcH; dw = dh * sr; }
+        else { dw = targetSrcW; dh = dw / sr; }
+        dx = (targetSrcW - dw)/2; dy = (targetSrcH - dh)/2;
+      } else {
+        if (sr > dr){ dw = targetSrcW; dh = dw / sr; dx = 0; dy = (targetSrcH - dh)/2; }
+        else { dh = targetSrcH; dw = dh * sr; dx = (targetSrcW - dw)/2; dy = 0; }
+      }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, dx, dy, dw, dh);
+
+      const quality = Math.min(Math.max(parseFloat(jpegQuality||'0.75'), 0.30), 0.95);
+      return { canvas, mime: 'image/jpeg', quality };
+    }
+
+    function fileToCompressedDataURL(file, displayWpx, displayHpx, displayUnit, mode, jpegQ){
+      return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = processToCanvas(img, targetW, targetH, mode);
-          const ctx = canvas.getContext('2d');
-          let mime = 'image/jpeg'; let quality = Math.min(Math.max(jpegQ||0.7, 0.3), 0.95);
-          const type = (file.type||'').toLowerCase();
-          const wantsPng = preserveAlpha && /png|webp/.test(type) && !forceJpeg;
-          if (wantsPng){ mime = 'image/png'; quality = undefined; }
-          else { ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = bgColor || '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+          const { canvas, mime, quality } = processToCanvas(img, displayWpx, displayHpx, displayUnit, mode, jpegQ);
           const dataUrl = canvas.toDataURL(mime, quality);
           resolve({ dataUrl, width: canvas.width, height: canvas.height, mime });
         };
-        img.onerror = reject; img.src = URL.createObjectURL(file);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
       });
     }
 
-    async function estimateCompressedTotal(){
-      const unit = document.querySelector("input[name='unit']:checked").value;
-      const targetW = toPx(document.getElementById('picW').value, unit);
-      const targetH = toPx(document.getElementById('picH').value, unit);
-      const mode = document.querySelector("input[name='resizeMode']:checked").value;
-      const jpegQ = parseFloat(document.getElementById('jpegQ').value||'0.7');
-      const forceJpeg = document.getElementById('forceJpeg').checked;
-      const preserveAlpha = document.getElementById('preserveAlpha').checked;
-      const bgColor = document.getElementById('bgColor').value;
-      let total = 0;
-      for (const f of filesState){
-        try{ const {dataUrl} = await fileToCompressedDataURL(f, targetW, targetH, {mode,jpegQ,forceJpeg,preserveAlpha,bgColor}); total += Math.round((dataUrl.length * 3)/4); }catch{}
-      }
-      setEstTotal(total); return total;
-    }
-
+    /* Excel Export (3 per row + notes) */
     document.getElementById('downloadXlsxBtn').addEventListener('click', async function(){
       try {
-        updateStatus(); for (let i=0; i<15 && !window.ExcelJS; i++) { await new Promise(r=>setTimeout(r,100)); }
-        if (!window.ExcelJS){ alert('ExcelJS not loaded. Place exceljs.min.js next to this HTML or allow CDN.'); return; }
+        updateStatus();
+        for (let i=0; i<20 && !window.ExcelJS; i++){ await new Promise(r => setTimeout(r, 100)); }
+        if (!window.ExcelJS){ alert('ExcelJS not loaded. Please allow CDN or provide exceljs.min.js locally.'); return; }
         if (!filesState.length){ alert('No images selected.'); return; }
+
         const unit = document.querySelector("input[name='unit']:checked").value;
-        const targetW = toPx(document.getElementById('picW').value, unit);
-        const targetH = toPx(document.getElementById('picH').value, unit);
+        const displayWpx = toPx(document.getElementById('picW').value, unit);
+        const displayHpx = toPx(document.getElementById('picH').value, unit);
         const mode = document.querySelector("input[name='resizeMode']:checked").value;
-        const jpegQ = parseFloat(document.getElementById('jpegQ').value||'0.7');
-        const forceJpeg = document.getElementById('forceJpeg').checked;
-        const preserveAlpha = document.getElementById('preserveAlpha').checked;
-        const bgColor = document.getElementById('bgColor').value;
+        const jpegQ = parseFloat(document.getElementById('jpegQ').value||'0.75');
         const notesHeightCm = parseFloat(document.getElementById('notesH').value||'2');
         const notesHeightPts = toPointsFromPx(notesHeightCm * CM_TO_PX);
-        const colWidthChars = pixelsToExcelChars(targetW);
+        const colWidthChars = pixelsToExcelChars(displayWpx);
         const xlsxName = (document.getElementById('xlsxName').value||'images.xlsx').trim();
-        const wb = new ExcelJS.Workbook(); wb.creator = 'Pic → Excel (Mobile)'; wb.created = new Date(); const ws = wb.addWorksheet('Pics');
-        ws.columns = [ { key:'c1', width: colWidthChars }, { key:'c2', width: colWidthChars }, { key:'c3', width: colWidthChars } ];
+
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'Pics Sorting and Arrangement in Excel (≤150\u202FPPI)';
+        wb.created = new Date();
+        const ws = wb.addWorksheet('Pics');
+
+        ws.columns = [
+          { key:'c1', width: colWidthChars },
+          { key:'c2', width: colWidthChars },
+          { key:'c3', width: colWidthChars }
+        ];
+
         const imagesData = [];
-        for (const file of filesState){ const p = await fileToCompressedDataURL(file, targetW, targetH, {mode,jpegQ,forceJpeg,preserveAlpha,bgColor}); const ext = /png/.test(p.mime) ? 'png' : 'jpeg'; const imgId = wb.addImage({ base64: p.dataUrl, extension: ext }); imagesData.push({ id: imgId }); }
-        let currentRow = 1; const imgRowHeightPts = toPointsFromPx(targetH);
-        const groups = []; for (let i=0; i<imagesData.length; i+=3){ groups.push(imagesData.slice(i, i+3)); }
-        groups.forEach(group => { ws.getRow(currentRow).height = imgRowHeightPts; ws.getRow(currentRow+1).height = notesHeightPts; group.forEach((img, idx)=>{ ws.addImage(img.id, { tl: { col: idx, row: currentRow-1 }, ext: { width: Math.round(targetW), height: Math.round(targetH) } }); }); ws.mergeCells(currentRow+1, 1, currentRow+1, 3); const cell = ws.getCell(currentRow+1, 1); cell.value = 'Notes:'; cell.alignment = { vertical:'top' }; cell.border = { top:{style:'thin', color:{argb:'FFBFBFBF'}}, left:{style:'thin', color:{argb:'FFBFBFBF'}}, right:{style:'thin', color:{argb:'FFBFBFBF'}}, bottom:{style:'thin', color:{argb:'FFBFBFBF'}} }; currentRow += 2; });
-        ws.views = [{ showGridLines: true }]; const buffer = await wb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.style.display='none'; a.href = url; a.download = xlsxName || 'images.xlsx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
-      } catch(err) { console.error(err); alert('Failed to generate .xlsx: ' + (err && err.message ? err.message : err)); }
+        for (const file of filesState){
+          const processed = await fileToCompressedDataURL(file, displayWpx, displayHpx, unit, mode, jpegQ);
+          const imgId = wb.addImage({ base64: processed.dataUrl, extension: 'jpeg' });
+          imagesData.push({ id: imgId });
+        }
+
+        let currentRow = 1;
+        const imgRowHeightPts = toPointsFromPx(displayHpx);
+        const groups = [];
+        for (let i=0; i<imagesData.length; i+=3){ groups.push(imagesData.slice(i, i+3)); }
+
+        groups.forEach(group => {
+          ws.getRow(currentRow).height = imgRowHeightPts;
+          ws.getRow(currentRow+1).height = notesHeightPts;
+
+          group.forEach((img, idx) => {
+            ws.addImage(img.id, {
+              tl: { col: idx, row: currentRow-1 },
+              ext: { width: Math.round(displayWpx), height: Math.round(displayHpx) }
+            });
+          });
+
+          ws.mergeCells(currentRow+1, 1, currentRow+1, 3);
+          const cell = ws.getCell(currentRow+1, 1);
+          cell.value = 'Notes:';
+          cell.alignment = { vertical:'top' };
+          cell.border = {
+            top:{style:'thin', color:{argb:'FFBFBFBF'}},
+            left:{style:'thin', color:{argb:'FFBFBFBF'}},
+            right:{style:'thin', color:{argb:'FFBFBFBF'}},
+            bottom:{style:'thin', color:{argb:'FFBFBFBF'}}
+          };
+
+          currentRow += 2;
+        });
+
+        ws.views = [{ showGridLines: true }];
+
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display='none';
+        a.href = url;
+        a.download = xlsxName || 'images.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+      } catch(err) {
+        console.error(err);
+        alert('Failed to generate .xlsx: ' + (err && err.message ? err.message : err));
+      }
     });
 
-    updateStatus(); window.addEventListener('load', updateStatus);
+    /* Init */
+    updateStatus();
+    window.addEventListener('load', updateStatus);
   </script>
 </body>
 </html>
